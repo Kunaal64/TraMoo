@@ -1,37 +1,51 @@
-import React from 'react';
-import {Button,Heading} from "@chakra-ui/react"
-import Style from './SmallBlogsCard.module.css'
-import {useNavigate} from "react-router-dom"
+import React from "react";
+import { Button, Heading } from "@chakra-ui/react";
+import Style from "./SmallBlogsCard.module.css";
+import { useNavigate } from "react-router-dom";
 function SmallBlogsCard(props) {
-    let navigate = useNavigate();
-    // console.log(props.Image)
-    let DeleteBlog=()=>{
-        fetch(`http://localhost:8000/blogs/${props.id}`,{
-            method:"DELETE",
-            headers:{
-                "Content-Type":"application/json",
-                
-            }
-        }).then((response)=>{
-            return response.json();
-        }).then((response)=>{
-            alert(response.Message);
-            navigate("/corner");
-        }).catch((error)=>{
-            alert("Failed to Delete")
-        })
-    }
-    return (
-        <div className={Style.sblogscard} style={{backgroundImage:`url(${props.image})`}}>
-            
-           <Heading as='h4' size='sm' style={{color:"white"}}>{props.title}</Heading>
-            <div>
-            <Button colorScheme='teal'margin='10px' onClick={()=>{navigate(`/editblogs/${props.id}`)}}>Edit Blog</Button>
-            <Button colorScheme='red'margin='10px'onClick={
-                DeleteBlog
-            }>Delete Blog</Button>
-            </div>
-        </div>
-    );
+  let navigate = useNavigate();
+  // console.log(props.Image)
+  let DeleteBlog = () => {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/blogs/${props.id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((response) => {
+        return response.json();
+      })
+      .then((response) => {
+        alert(response.Message);
+        navigate("/corner");
+      })
+      .catch((error) => {
+        alert("Failed to Delete");
+      });
+  };
+  return (
+    <div
+      className={Style.sblogscard}
+      style={{ backgroundImage: `url(${props.image})` }}
+    >
+      <Heading as="h4" size="sm" style={{ color: "white" }}>
+        {props.title}
+      </Heading>
+      <div>
+        <Button
+          colorScheme="teal"
+          margin="10px"
+          onClick={() => {
+            navigate(`/editblogs/${props.id}`);
+          }}
+        >
+          Edit Blog
+        </Button>
+        <Button colorScheme="red" margin="10px" onClick={DeleteBlog}>
+          Delete Blog
+        </Button>
+      </div>
+    </div>
+  );
 }
 export default SmallBlogsCard;

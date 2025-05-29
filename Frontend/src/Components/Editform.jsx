@@ -11,7 +11,7 @@ function Editform(props) {
   let [Token] = useState(localStorage.getItem("token"));
   let { id } = useParams();
   useEffect(() => {
-    fetch(`http://localhost:8000/blogs/${id}`, {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/blogs/${id}`, {
       headers: {
         "Content-Type": "application/json",
         authorization: `Bearer ${Token}`,
@@ -45,7 +45,7 @@ function Editform(props) {
       Content,
       Image,
     };
-    fetch(`http://localhost:8000/blogs/${id}`, {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/blogs/${id}`, {
       method: "PUT",
       body: JSON.stringify(new_blog),
       headers: {

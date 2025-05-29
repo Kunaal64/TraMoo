@@ -7,7 +7,7 @@ function ReadBlog(props) {
   let [Blog, SetBlog] = useState({});
   useEffect(() => {
     let token = localStorage.getItem("token");
-    fetch(`http://localhost:8000/blogs/${id}`, {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/blogs/${id}`, {
       headers: {
         "Content-Type": "application/json",
         authorization: `Bearer ${token}`,
