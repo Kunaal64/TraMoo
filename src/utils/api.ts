@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Dummy credentials - replace with actual values
 const MONGODB_CONFIG = {
-  connectionString: 'mongodb+srv://dummyuser:dummypassword@cluster0.dummy.mongodb.net/wanderlust?retryWrites=true&w=majority',
+  connectionString: 'mongodb+srv://kunalsharmamva610:Kunal1064@tramoo.lbiwknp.mongodb.net/?retryWrites=true&w=majority&appName=TraMoo',
   dbName: 'wanderlust',
   collections: {
     users: 'users',

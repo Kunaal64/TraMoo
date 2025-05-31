@@ -12,8 +12,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Blogs from './pages/Blogs';
 import Login from './pages/Login';
-import Gallery from './pages/Gallery';
 import WritersCorner from './pages/WritersCorner';
+import BlogDetail from './pages/BlogDetail';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -31,11 +31,7 @@ const App = () => {
                 <Route path="/" element={<MainLayout />}>
                   <Route index element={<Home />} />
                   <Route path="blogs" element={<Blogs />} />
-                  <Route path="gallery" element={
-                    <ProtectedRoute>
-                      <Gallery />
-                    </ProtectedRoute>
-                  } />
+                  <Route path="blogs/:id" element={<BlogDetail />} />
                   <Route path="writers-corner" element={
                     <ProtectedRoute>
                       <WritersCorner />

@@ -1,89 +1,47 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Grid, List } from 'lucide-react';
 import BlogCard from '../components/BlogCard';
 import TagChip from '../components/TagChip';
 import SearchBar from '../components/SearchBar';
+import axios from 'axios';
+import { useToast } from '@/components/ui/use-toast';
+import { Link } from 'react-router-dom';
 
 const Blogs = () => {
+  const { toast } = useToast();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [allBlogs, setAllBlogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Sample blog data
-  const blogs = [
-    {
-      id: '1',
-      title: 'Hidden Gems of Santorini: Beyond the Tourist Trail',
-      excerpt: 'Discover the secret spots and local favorites that make Santorini truly magical. From hidden beaches to authentic tavernas, explore the island like a local.',
-      image: 'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=500&h=300&fit=crop',
-      author: 'Maria Rodriguez',
-      date: 'Nov 15, 2024',
-      location: 'Santorini, Greece',
-      readTime: '8 min read',
-      tags: ['Greece', 'Islands', 'Hidden Gems', 'Mediterranean'],
-    },
-    {
-      id: '2',
-      title: 'Trekking Through the Himalayas: A Journey of Self-Discovery',
-      excerpt: 'My transformative 15-day trek through the Annapurna Circuit and the lessons learned along the way. A story of perseverance, breathtaking views, and personal growth.',
-      image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=500&h=300&fit=crop',
-      author: 'Alex Thompson',
-      date: 'Nov 12, 2024',
-      location: 'Nepal',
-      readTime: '12 min read',
-      tags: ['Nepal', 'Trekking', 'Adventure', 'Mountains', 'Self-Discovery'],
-    },
-    {
-      id: '3',
-      title: 'Street Food Safari: Flavors of Bangkok',
-      excerpt: 'A culinary adventure through the bustling streets and hidden food courts of Thailand\'s capital. Taste authentic dishes and learn from local food vendors.',
-      image: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=500&h=300&fit=crop',
-      author: 'Sarah Kim',
-      date: 'Nov 10, 2024',
-      location: 'Bangkok, Thailand',
-      readTime: '6 min read',
-      tags: ['Thailand', 'Food', 'Culture', 'Street Food', 'Asia'],
-    },
-    {
-      id: '4',
-      title: 'Northern Lights Quest in Iceland',
-      excerpt: 'Chasing the Aurora Borealis across Iceland\'s dramatic landscapes. Tips for the best viewing spots and photography techniques for capturing this natural wonder.',
-      image: 'https://images.unsplash.com/photo-1579952363873-27d3bfad9c0d?w=500&h=300&fit=crop',
-      author: 'Erik Larsson',
-      date: 'Nov 8, 2024',
-      location: 'Iceland',
-      readTime: '10 min read',
-      tags: ['Iceland', 'Northern Lights', 'Photography', 'Nature', 'Arctic'],
-    },
-    {
-      id: '5',
-      title: 'Safari Adventures in Kenya',
-      excerpt: 'An unforgettable journey through the Maasai Mara during the Great Migration. Wildlife encounters that will change your perspective on nature.',
-      image: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=500&h=300&fit=crop',
-      author: 'David Ochieng',
-      date: 'Nov 5, 2024',
-      location: 'Kenya',
-      readTime: '9 min read',
-      tags: ['Kenya', 'Safari', 'Wildlife', 'Africa', 'Photography'],
-    },
-    {
-      id: '6',
-      title: 'Cultural Immersion in Japanese Temples',
-      excerpt: 'Living with monks in Kyoto temples and learning about Zen Buddhism. A spiritual journey through Japan\'s most sacred spaces.',
-      image: 'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=500&h=300&fit=crop',
-      author: 'Yuki Tanaka',
-      date: 'Nov 2, 2024',
-      location: 'Kyoto, Japan',
-      readTime: '11 min read',
-      tags: ['Japan', 'Culture', 'Temples', 'Spirituality', 'Buddhism'],
-    },
-  ];
+  useEffect(() => {
+    const fetchAllBlogs = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/blogs`);
+        setAllBlogs(response.data.blogs || []);
+      } catch (err) {
+        console.error('Error fetching blogs:', err);
+        setError(err);
+        toast({
+          title: "Error",
+          description: "Failed to load blogs.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAllBlogs();
+  }, []);
 
-  const allTags = Array.from(new Set(blogs.flatMap(blog => blog.tags)));
+  const allTags = Array.from(new Set(allBlogs.flatMap(blog => blog.tags || [])));
 
-  const filteredBlogs = blogs.filter(blog => 
+  const filteredBlogs = allBlogs.filter(blog => 
     selectedTags.length === 0 || selectedTags.some(tag => blog.tags.includes(tag))
   );
 
@@ -200,23 +158,9 @@ const Blogs = () => {
       </motion.div>
 
       {/* Blog Grid */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.4 }}
-        className={`grid gap-8 ${
-          viewMode === 'grid' 
-            ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-            : 'grid-cols-1'
-        }`}
-      >
-        {filteredBlogs.map((blog, index) => (
-          <BlogCard key={blog.id} {...blog} index={index} />
-        ))}
-      </motion.div>
-
-      {/* No Results */}
-      {filteredBlogs.length === 0 && (
+      {loading && <p className="text-center text-slate-600 dark:text-slate-400">Loading stories...</p>}
+      {error && <p className="text-center text-red-500">Error loading stories.</p>}
+      {!loading && !filteredBlogs.length && (
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -237,6 +181,26 @@ const Blogs = () => {
           >
             Clear Filters
           </button>
+        </motion.div>
+      )}
+      {!loading && filteredBlogs.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className={`grid gap-8 ${
+            viewMode === 'grid' 
+              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+              : 'grid-cols-1'
+          }`}
+        >
+          {filteredBlogs.map((blog, index) => (
+            blog._id && (
+              <Link to={`/blogs/${blog._id}`} key={blog._id}>
+                <BlogCard {...blog} index={index} />
+              </Link>
+            )
+          ))}
         </motion.div>
       )}
     </div>

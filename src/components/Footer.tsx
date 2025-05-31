@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { MapPin, Heart, Github, Twitter, Instagram } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -43,11 +42,6 @@ const Footer = () => {
               <li>
                 <Link to="/blogs" className="text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors">
                   Travel Stories
-                </Link>
-              </li>
-              <li>
-                <Link to="/gallery" className="text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors">
-                  Photo Gallery
                 </Link>
               </li>
               <li>

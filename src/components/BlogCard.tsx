@@ -1,31 +1,64 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, User, Heart } from 'lucide-react';
+import { Calendar, Clock, User, Heart, MessageSquare } from 'lucide-react';
 import TagChip from './TagChip';
 
 interface BlogCardProps {
-  id: string;
+  _id: string;
   title: string;
+  subtitle?: string;
   excerpt: string;
-  image: string;
-  author: string;
-  date: string;
-  readTime: string;
+  image?: string;
+  images?: string[];
+  author: { name: string; avatar?: string; };
+  createdAt: string;
+  readTime: number;
   tags: string[];
+  likes: string[];
+  comments: any[]; // Consider a more specific type if needed
   index?: number;
 }
 
 const BlogCard: React.FC<BlogCardProps> = ({
+  _id,
   title,
+  subtitle,
   excerpt,
   image,
+  images,
   author,
-  date,
+  createdAt,
   readTime,
   tags,
+  likes,
+  comments,
   index = 0,
 }) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    if (images && images.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+      }, 3000); // 3 seconds
+      return () => clearInterval(interval);
+    }
+  }, [images]);
+
+  const getFullImageUrl = (path) => {
+    if (!path) return 'https://via.placeholder.com/500x300?text=No+Image';
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    return `${import.meta.env.VITE_BACKEND_URL}${path}`;
+  };
+
+  const imageUrl = images && images.length > 0 
+    ? getFullImageUrl(images[currentImageIndex]) 
+    : image 
+      ? getFullImageUrl(image) 
+      : 'https://via.placeholder.com/500x300?text=No+Image';
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 30 }}
@@ -36,18 +69,19 @@ const BlogCard: React.FC<BlogCardProps> = ({
       <div className="glass rounded-2xl overflow-hidden border border-slate-200/50 dark:border-slate-800/50 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/20 dark:hover:shadow-black/20">
         <div className="relative h-48 overflow-hidden">
           <img
-            src={image}
+            src={imageUrl}
             alt={title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="absolute top-4 left-4">
-            <motion.div
+            {/* You can add a featured tag here if needed */}
+            {/* <motion.div
               className="bg-slate-800 dark:bg-slate-200 text-white dark:text-black px-3 py-1 rounded-full text-xs font-medium"
               whileHover={{ scale: 1.05 }}
             >
               Featured
-            </motion.div>
+            </motion.div> */}
           </div>
           <motion.button
             className="absolute top-4 right-4 w-8 h-8 glass rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -59,9 +93,12 @@ const BlogCard: React.FC<BlogCardProps> = ({
         </div>
         
         <div className="p-6">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-all duration-300">
+          <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-all duration-300">
             {title}
           </h3>
+          {subtitle && (
+            <p className="text-slate-600 dark:text-slate-400 text-sm mb-3">{subtitle}</p>
+          )}
           
           <p className="text-slate-600 dark:text-slate-400 mb-4 line-clamp-3 font-medium">
             {excerpt}
@@ -82,16 +119,26 @@ const BlogCard: React.FC<BlogCardProps> = ({
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-1">
                 <User size={14} />
-                <span className="font-medium">{author}</span>
+                <span className="font-medium">{author?.name}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Calendar size={14} />
-                <span>{date}</span>
+                <span>{new Date(createdAt).toLocaleDateString()}</span>
               </div>
             </div>
-            <div className="flex items-center space-x-1">
-              <Clock size={14} />
-              <span>{readTime}</span>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
+                <Heart size={14} />
+                <span>{likes.length}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <MessageSquare size={14} />
+                <span>{comments.length}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Clock size={14} />
+                <span>{readTime} min read</span>
+              </div>
             </div>
           </div>
         </div>

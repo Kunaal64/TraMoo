@@ -20,7 +20,6 @@ const Navbar = () => {
   const navItems = [
     { to: '/', label: 'Home', icon: <Compass size={18} /> },
     { to: '/blogs', label: 'Stories', icon: <BookOpen size={18} /> },
-    { to: '/gallery', label: 'Gallery', icon: null },
     { to: '/writers-corner', label: "Writer's Corner", icon: <PenTool size={18} /> },
   ];
 
@@ -44,7 +43,7 @@ const Navbar = () => {
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-3">
               <motion.div
-                className="w-8 h-8 bg-slate-800 dark:bg-slate-200 rounded-lg flex items-center justify-center"
+                className="w-8 h-8 bg-slate-800 dark:bg-slate-200 rounded-xl flex items-center justify-center"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -61,7 +60,7 @@ const Navbar = () => {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all font-medium ${
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-xl transition-all font-medium ${
                     location.pathname === item.to
                       ? 'text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
@@ -77,7 +76,7 @@ const Navbar = () => {
             <div className="flex items-center space-x-4">
               <motion.button
                 onClick={() => setShowSearch(!showSearch)}
-                className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50"
+                className="p-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -90,14 +89,14 @@ const Navbar = () => {
                 <>
                   <Link
                     to="/profile"
-                    className="hidden md:flex items-center space-x-2 px-4 py-2 bg-slate-800 dark:bg-slate-200 text-white dark:text-black rounded-lg hover:bg-slate-700 dark:hover:bg-slate-300 transition-all btn-hover font-medium"
+                    className="hidden md:flex items-center space-x-2 px-4 py-2 bg-slate-800 dark:bg-slate-200 text-white dark:text-black rounded-xl hover:bg-slate-700 dark:hover:bg-slate-300 transition-all btn-hover font-medium"
                   >
                     <User size={18} />
                     <span>{user?.name || 'Profile'}</span>
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="hidden md:flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all btn-hover font-medium"
+                    className="hidden md:flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all btn-hover font-medium"
                   >
                     <span>Logout</span>
                   </button>
@@ -105,7 +104,7 @@ const Navbar = () => {
               ) : (
                 <Link
                   to="/login"
-                  className="hidden md:flex items-center space-x-2 px-4 py-2 bg-slate-800 dark:bg-slate-200 text-white dark:text-black rounded-lg hover:bg-slate-700 dark:hover:bg-slate-300 transition-all btn-hover font-medium"
+                  className="hidden md:flex items-center space-x-2 px-4 py-2 bg-slate-800 dark:bg-slate-200 text-white dark:text-black rounded-xl hover:bg-slate-700 dark:hover:bg-slate-300 transition-all btn-hover font-medium"
                 >
                   <User size={18} />
                   <span>Login</span>
@@ -115,7 +114,7 @@ const Navbar = () => {
               {/* Mobile menu button */}
               <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="md:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50"
+                className="md:hidden p-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50"
               >
                 {isOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
@@ -149,7 +148,7 @@ const Navbar = () => {
                   key={item.to}
                   to={item.to}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all font-medium ${
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium ${
                     location.pathname === item.to
                       ? 'text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
@@ -164,14 +163,14 @@ const Navbar = () => {
                   <Link
                     to="/profile"
                     onClick={() => setIsOpen(false)}
-                    className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    className="flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   >
                     <User size={18} />
                     <span>{user?.name || 'Profile'}</span>
                   </Link>
                   <button
                     onClick={() => {handleLogout(); setIsOpen(false);}}
-                    className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    className="flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   >
                     <span>Logout</span>
                   </button>
@@ -180,7 +179,7 @@ const Navbar = () => {
                 <Link
                   to="/login"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center space-x-3 px-4 py-3 bg-slate-800 dark:bg-slate-200 text-white dark:text-black rounded-lg hover:bg-slate-700 dark:hover:bg-slate-300 transition-all font-medium"
+                  className="flex items-center space-x-3 px-4 py-3 bg-slate-800 dark:bg-slate-200 text-white dark:text-black rounded-xl hover:bg-slate-700 dark:hover:bg-slate-300 transition-all font-medium"
                 >
                   <User size={18} />
                   <span>Login</span>
