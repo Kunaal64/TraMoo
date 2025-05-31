@@ -71,7 +71,9 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative min-h-screen-minus-navbar flex items-center justify-center overflow-hidden bg-gradient-to-r from-hero-light-bg-from to-hero-light-bg-to dark:from-background dark:to-background">
+      <section className="relative min-h-screen-minus-navbar flex items-center justify-center overflow-hidden 
+        bg-gradient-to-r from-hero-light-bg-from to-hero-light-bg-to 
+        dark:bg-gradient-to-r dark:from-hero-dark-bg-from dark:to-hero-dark-bg-to">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}

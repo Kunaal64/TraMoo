@@ -180,7 +180,7 @@ const BlogDetail = () => {
                     {blog.images.map((_, idx) => (
                       <span
                         key={idx}
-                        className={`w-2 h-2 rounded-full ${currentImageIndex === idx ? 'bg-orange-500' : 'bg-muted-foreground/50'} cursor-pointer`}
+                        className={`w-2 h-2 rounded-full ${currentImageIndex === idx ? 'bg-primary' : 'bg-muted-foreground/50'} cursor-pointer`}
                         onClick={() => setCurrentImageIndex(idx)}
                       />
                     ))}
@@ -199,7 +199,7 @@ const BlogDetail = () => {
             <button
               onClick={handleLike}
               disabled={isLiking}
-              className={`flex items-center gap-1 ${isLikedByUser ? 'text-destructive' : 'text-muted-foreground hover:text-orange-500'}`}
+              className={`flex items-center gap-1 ${isLikedByUser ? 'text-destructive' : 'text-muted-foreground hover:text-primary'}`}
             >
               <Heart size={16} fill={isLikedByUser ? 'currentColor' : 'none'} />
               <span>{Array.isArray(blog.likes) ? blog.likes.length : 0}</span>
@@ -219,7 +219,7 @@ const BlogDetail = () => {
 
             <div className="space-y-6 mb-8">
               {blog.comments.map((comment, index) => (
-                <div key={index} className="bg-secondary p-4 rounded-lg flex gap-3">
+                <div key={index} className="bg-card p-4 rounded-lg flex gap-3 border border-border">
                   <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium overflow-hidden">
                     {comment.author?.avatar ? (
                       <img src={getFullImageUrl(comment.author.avatar)} alt="Avatar" className="w-full h-full object-cover rounded-full" />
@@ -246,7 +246,7 @@ const BlogDetail = () => {
                 className="mb-4 border border-input bg-background text-foreground"
                 required
               />
-              <Button type="submit" disabled={isCommenting || !user} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Button type="submit" disabled={isCommenting || !user} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-3xl">
                 {isCommenting ? 'Posting...' : 'Post Comment'}
               </Button>
               {!user && <p className="text-destructive text-sm mt-2">You must be logged in to comment.</p>}

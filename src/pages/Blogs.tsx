@@ -137,7 +137,7 @@ const Blogs = () => {
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-3xl transition-colors ${
                 viewMode === 'grid'
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
               }`}
             >
@@ -147,7 +147,7 @@ const Blogs = () => {
               onClick={() => setViewMode('list')}
               className={`p-2 rounded-3xl transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
               }`}
             >
@@ -180,7 +180,7 @@ const Blogs = () => {
             {selectedTags.length > 0 && (
               <button
                 onClick={() => setSelectedTags([])}
-                className="mt-4 text-sm text-orange-500 hover:text-orange-600 transition-colors"
+                className="mt-4 text-sm text-primary hover:text-primary/80 transition-colors"
               >
                 Clear all filters
               </button>
@@ -209,7 +209,7 @@ const Blogs = () => {
           </p>
           <button
             onClick={() => setSelectedTags([])}
-            className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-3xl transition-colors"
+            className="px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-3xl transition-colors"
           >
             Clear Filters
           </button>

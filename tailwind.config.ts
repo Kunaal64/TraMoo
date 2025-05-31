@@ -84,6 +84,11 @@ export default {
 					900: 'hsl(var(--slate-900))',
 					950: 'hsl(var(--slate-950))',
 				},
+				// New hero gradient colors for Tailwind
+				heroLightBgFrom: 'hsl(var(--hero-gradient-from-light))',
+				heroLightBgTo: 'hsl(var(--hero-gradient-to-light))',
+				heroDarkBgFrom: 'hsl(var(--hero-gradient-from-dark))',
+				heroDarkBgTo: 'hsl(var(--hero-gradient-to-dark))',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

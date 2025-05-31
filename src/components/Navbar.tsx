@@ -34,7 +34,7 @@ const Navbar = () => {
   return (
     <>
       <motion.nav 
-        className="fixed top-0 w-full z-50 glass bg-navbar-bg border-b border-border"
+        className="fixed top-0 w-full z-50 glass bg-background border-b border-border"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5 }}

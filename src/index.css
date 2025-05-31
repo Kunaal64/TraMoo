@@ -9,6 +9,7 @@
 body {
   font-family: 'Inter', sans-serif;
   font-weight: 400;
+  background-color: hsl(var(--background));
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -97,7 +98,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .dark .gradient-text-hero {
-  background: linear-gradient(45deg, #FFD700, #FFA500); /* Keep same for dark mode */
+  background: linear-gradient(45deg, #FFEFBA, #FFD700); /* Lighter gold to golden for better contrast on black */
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -165,54 +166,44 @@ h1, h2, h3, h4, h5, h6 {
 
     --hero-light-bg-from: 35 100% 95%; /* Light, warm yellow */
     --hero-light-bg-to: 45 100% 90%; /* Slightly darker yellow */
+
+    /* New light mode hero gradient */
+    --hero-gradient-from-light: 35 100% 95%;
+    --hero-gradient-to-light: 45 100% 90%;
   }
 
   .dark {
-    --background: 220 10% 3%; /* Deeper black for main background */
+    --background: 0 0% 0%; /* Pure black for main background */
     --foreground: 210 40% 98%;
 
-    --card: 220 10% 6%; /* Slightly lighter black for cards */
+    --card: 0 0% 3%; /* Very dark grey for cards */
     --card-foreground: 210 40% 98%;
 
-    --popover: 220 10% 6%;
+    --popover: 0 0% 3%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 220 10% 12%; /* Adjusted for contrast on black primary */
+    --primary: 210 40% 98%; /* White primary */
+    --primary-foreground: 0 0% 6%; /* Very dark grey text on white primary */
 
-    --secondary: 220 10% 10%; /* Darker secondary */
+    --secondary: 0 0% 10%; /* Darker secondary */
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 220 10% 10%;
+    --muted: 0 0% 10%;
     --muted-foreground: 215 20.2% 65.1%; /* Keep for readability of subtle text */
 
-    --accent: 220 10% 10%;
+    --accent: 0 0% 10%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 10% 15%; /* Darker border */
-    --input: 220 10% 10%;
+    --border: 0 0% 15%; /* Darker border */
+    --input: 0 0% 10%;
     --ring: 210 40% 98%; /* Light ring for focus */
 
-    /* Custom Colors (Dark Mode Adjustments for black theme) */
-    --orange-500: 25 95% 53%;
-    --orange-600: 25 90% 48%;
-    --slate-50: 220 10% 95%; 
-    --slate-100: 220 10% 90%;
-    --slate-200: 220 10% 80%;
-    --slate-300: 220 10% 70%;
-    --slate-400: 220 10% 60%;
-    --slate-500: 220 10% 40%;
-    --slate-600: 220 10% 30%;
-    --slate-700: 220 10% 20%;
-    --slate-800: 220 10% 15%;
-    --slate-900: 220 10% 10%;
-    --slate-950: 220 10% 5%;
-
-    --navbar-bg: 220 10% 8%; /* Slightly different black for navbar */
-    --footer-bg: 220 10% 8%; /* Slightly different black for footer */
+    /* New dark mode hero gradient */
+    --hero-gradient-from-dark: 240 10% 3%;
+    --hero-gradient-to-dark: 240 10% 6%;
   }
 }
 
@@ -240,4 +231,93 @@ body {
   background-color: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Navbar and Footer specific styles - ensure black shades */
+.bg-navbar-bg {
+  background-color: hsl(var(--background)); /* Use global background for consistency */
+}
+
+.dark .bg-navbar-bg {
+  background-color: hsl(var(--background));
+}
+
+/* Update glass effect for consistent background colors */
+.glass {
+  background: hsl(var(--card) / 0.7);
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .glass {
+  background: hsl(var(--card) / 0.7);
+  border: 1px solid hsl(var(--border));
+}
+
+/* Hero section background gradients */
+.hero-background-light {
+  background: linear-gradient(135deg, hsl(var(--hero-gradient-from-light)), hsl(var(--hero-gradient-to-light)));
+}
+
+.dark .hero-background-dark {
+  background: linear-gradient(135deg, hsl(var(--hero-gradient-from-dark)), hsl(var(--hero-gradient-to-dark)));
+}
+
+/* Additional Prose Mirror styles for Markdown */
+.prose img {
+  border-radius: var(--radius);
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  color: hsl(var(--foreground));
+}
+
+.prose p {
+  color: hsl(var(--foreground));
+}
+
+.prose a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+.prose strong {
+  color: hsl(var(--foreground));
+}
+
+.prose blockquote {
+  color: hsl(var(--muted-foreground));
+  border-left: 4px solid hsl(var(--border));
+  padding-left: 1em;
+}
+
+.prose code {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  padding: 0.2em 0.4em;
+  border-radius: var(--radius);
+}
+
+.prose pre {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  padding: 1em;
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.prose ul, .prose ol {
+  color: hsl(var(--foreground));
+  padding-left: 1.5em;
+}
+
+.prose li {
+  margin-bottom: 0.5em;
+}
+
+.prose hr {
+  border-color: hsl(var(--border));
+  margin-top: 2em;
+  margin-bottom: 2em;
 }
