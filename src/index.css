@@ -9,7 +9,9 @@
 body {
   font-family: 'Inter', sans-serif;
   font-weight: 400;
-  background-color: hsl(var(--background));
+  background-color: hsl(var(--background)); /* Ensure consistent background */
+  @apply bg-background text-foreground;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -54,28 +56,21 @@ h1, h2, h3, h4, h5, h6 {
   min-height: calc(100vh - 4rem); /* Assuming navbar height is 4rem (h-16) */
 }
 
-/* Subtle radial glow effects */
-.radial-glow {
-  background: radial-gradient(circle at 50% 50%, rgba(148, 163, 184, 0.03) 0%, transparent 70%);
-}
-
-.dark .radial-glow {
-  background: radial-gradient(circle at 50% 50%, rgba(148, 163, 184, 0.05) 0%, transparent 70%);
-}
-
 /* Glass effect */
 .glass {
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  background-color: hsl(var(--card) / 0.7);
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .dark .glass {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  background-color: hsl(var(--card) / 0.7);
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
-/* Minimal gradient text */
+/* Minimal gradient text (for general use) */
 .gradient-text {
   background: linear-gradient(135deg, hsl(var(--foreground)) 0%, hsl(var(--muted-foreground)) 100%);
   -webkit-background-clip: text;
@@ -90,6 +85,7 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-text-fill-color: transparent;
 }
 
+/* Hero text gradient (Orange) */
 .gradient-text-hero {
   background: linear-gradient(45deg, #FFD700, #FFA500); /* Golden to Orange gradient */
   -webkit-background-clip: text;
@@ -98,7 +94,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .dark .gradient-text-hero {
-  background: linear-gradient(45deg, #FFEFBA, #FFD700); /* Lighter gold to golden for better contrast on black */
+  background: linear-gradient(45deg, #FFD700, #FFA500); /* Keep same for dark mode */
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -113,22 +109,37 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+/* Radial glow for hero section */
+.hero-radial-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.05) 0%, transparent 70%); /* Inverted for light mode */
+  mix-blend-mode: overlay;
+}
+
+.dark .hero-radial-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 70%); /* Slightly more pronounced */
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 98%; /* PromptPDF: Very light off-white/subtle grey */
+    --foreground: 222.2 84% 4.9%; /* PromptPDF: Deep almost black for text */
 
-    --card: 0 0% 100%;
+    --card: 0 0% 100%; /* PromptPDF: Pure white for cards */
     --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 222.2 47.4% 11.2%; /* Keeping original primary as general purpose dark blue */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -149,8 +160,8 @@ h1, h2, h3, h4, h5, h6 {
 
     --radius: 0.5rem;
 
-    /* Custom Colors */
-    --orange-500: 25 95% 53%; /* Your orange accent */
+    /* Custom Colors - Keep existing for general usage if needed */
+    --orange-500: 25 95% 53%;
     --orange-600: 25 90% 48%;
     --slate-50: 210 20% 98%;
     --slate-100: 210 20% 95%;
@@ -164,46 +175,48 @@ h1, h2, h3, h4, h5, h6 {
     --slate-900: 210 20% 10%;
     --slate-950: 210 20% 5%;
 
-    --hero-light-bg-from: 35 100% 95%; /* Light, warm yellow */
-    --hero-light-bg-to: 45 100% 90%; /* Slightly darker yellow */
-
-    /* New light mode hero gradient */
-    --hero-gradient-from-light: 35 100% 95%;
-    --hero-gradient-to-light: 45 100% 90%;
+    /* Light Mode Hero Background Gradient (inverted from Dark Mode) */
+    --hero-gradient-from-light: 240 10% 100%; /* Inverted from dark: pure white */
+    --hero-gradient-to-light: 240 10% 99%; /* Inverted from dark: very slightly darker white */
   }
 
   .dark {
-    --background: 0 0% 0%; /* Pure black for main background */
-    --foreground: 210 40% 98%;
+    --background: 0 0% 0%; /* Pure black for main background (Drawloop) */
+    --foreground: 210 40% 98%; /* White/light text */
 
-    --card: 0 0% 3%; /* Very dark grey for cards */
+    --card: 240 10% 3%; /* Very dark grey for cards (Drawloop) */
     --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 3%;
+    --popover: 240 10% 3%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%; /* White primary */
-    --primary-foreground: 0 0% 6%; /* Very dark grey text on white primary */
+    --primary: 240 10% 10%; /* Dark grey for primary buttons (changed from purple) */
+    --primary-foreground: 210 40% 98%; /* White text on dark primary */
 
-    --secondary: 0 0% 10%; /* Darker secondary */
+    --secondary: 240 10% 10%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 215 20.2% 65.1%; /* Keep for readability of subtle text */
+    --muted: 240 10% 10%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 0 0% 10%;
+    --accent: 240 10% 10%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 15%; /* Darker border */
-    --input: 0 0% 10%;
-    --ring: 210 40% 98%; /* Light ring for focus */
+    --border: 240 10% 15%; /* Darker border */
+    --input: 240 10% 10%;
+    --ring: 210 40% 98%;
 
-    /* New dark mode hero gradient */
-    --hero-gradient-from-dark: 240 10% 3%;
-    --hero-gradient-to-dark: 240 10% 6%;
+    /* Dark Mode Hero Background Gradient (Black with subtle hint) */
+    --hero-gradient-from-dark: 240 10% 0%; /* Pure black start */
+    --hero-gradient-to-dark: 240 10% 1%; /* Very slightly lighter black end, with subtle hue */
+
+    /* Custom glow colors for dark mode background props (Drawloop inspired) */
+    --glow-purple: 260 5% 2%; /* Very dark, highly desaturated purple */
+    --glow-blue: 230 5% 2%; /* Very dark, highly desaturated blue */
+    --glow-pink: 330 5% 2%; /* Very dark, highly desaturated pink */
   }
 }
 
@@ -215,52 +228,8 @@ html.dark {
   color-scheme: dark;
 }
 
-body {
-  @apply bg-background text-foreground;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.glass {
-  background-color: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.dark .glass {
-  background-color: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-}
-
-/* Navbar and Footer specific styles - ensure black shades */
-.bg-navbar-bg {
-  background-color: hsl(var(--background)); /* Use global background for consistency */
-}
-
-.dark .bg-navbar-bg {
-  background-color: hsl(var(--background));
-}
-
-/* Update glass effect for consistent background colors */
-.glass {
-  background: hsl(var(--card) / 0.7);
-  border: 1px solid hsl(var(--border));
-}
-
-.dark .glass {
-  background: hsl(var(--card) / 0.7);
-  border: 1px solid hsl(var(--border));
-}
-
-/* Hero section background gradients */
-.hero-background-light {
-  background: linear-gradient(135deg, hsl(var(--hero-gradient-from-light)), hsl(var(--hero-gradient-to-light)));
-}
-
-.dark .hero-background-dark {
-  background: linear-gradient(135deg, hsl(var(--hero-gradient-from-dark)), hsl(var(--hero-gradient-to-dark)));
-}
+/* Removed redundant `hero-background-light` and `hero-background-dark` classes. */
+/* These will be applied directly in `Home.tsx` using Tailwind's `from-` and `to-` utility classes. */
 
 /* Additional Prose Mirror styles for Markdown */
 .prose img {
@@ -321,3 +290,69 @@ body {
   margin-top: 2em;
   margin-bottom: 2em;
 }
+
+/* Subtle noise texture for hero section */
+.hero-noise {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  background-size: 100px 100px;
+  mix-blend-mode: overlay;
+  opacity: 0.5; /* Default for light mode */
+}
+
+.dark .hero-noise {
+  opacity: 0.2; /* Adjust for dark mode */
+  mix-blend-mode: soft-light;
+}
+
+/* Dark mode hero background image */
+.dark .hero-section-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/hero-dark-background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.15; 
+  filter: none; 
+  mix-blend-mode: luminosity; 
+  z-index: 0;
+}
+
+/* Overlay to ensure text readability on top of the image */
+.dark .hero-section-image::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.4)); 
+  z-index: 1;
+}
+
+/* Light mode hero background image (inverted from Dark Mode) */
+.light .hero-section-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/hero-dark-background.jpg'); /* Use the same image as dark mode */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 1; /* Max opacity for visibility */
+  filter: invert(1); /* Invert colors for light mode */
+  mix-blend-mode: normal; /* Normal blend mode for maximum visibility */
+  z-index: 0;
+}
+
+/* Removed overlay for light mode image */

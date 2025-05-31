@@ -23,6 +23,7 @@ const Home = () => {
       setError(null);
       try {
         const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/blogs?_limit=3&_sort=createdAt&_order=desc`);
+        console.log('Featured Blogs Data:', response.data.blogs);
         setFeaturedBlogs(response.data.blogs || []);
       } catch (err) {
         console.error('Error fetching featured blogs:', err);
@@ -71,15 +72,16 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative min-h-screen-minus-navbar flex items-center justify-center overflow-hidden 
-        bg-gradient-to-r from-hero-light-bg-from to-hero-light-bg-to 
-        dark:bg-gradient-to-r dark:from-hero-dark-bg-from dark:to-hero-dark-bg-to">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <section className="relative min-h-screen-minus-navbar flex items-center justify-center overflow-hidden">
+        <div className="hero-radial-glow"></div>
+        {/* Hero Background Image - now handled by CSS with invert filter for light mode */}
+        <div className="hero-section-image"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-5xl md:text-7xl font-bold text-white mb-6 gradient-text-hero"
+            className="text-5xl md:text-7xl font-bold text-foreground mb-6 gradient-text-hero"
           >
             Wanderlust
           </motion.h1>
@@ -88,7 +90,7 @@ const Home = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl md:text-2xl text-slate-200 dark:text-slate-400 mb-8 max-w-3xl mx-auto"
+            className="text-xl md:text-2xl text-foreground/80 dark:text-muted-foreground mb-8 max-w-3xl mx-auto"
           >
             Discover the world through the eyes of fellow travelers. Share your stories, capture moments, and inspire others to explore.
           </motion.p>
@@ -126,10 +128,10 @@ const Home = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ repeat: Infinity, repeatType: "reverse", duration: 1, delay: 1 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white cursor-pointer"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-foreground cursor-pointer z-10"
           onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
         >
-          <ArrowDownCircle size={36} className="text-white" />
+          <ArrowDownCircle size={36} className="text-foreground" />
         </motion.div>
       </section>
 

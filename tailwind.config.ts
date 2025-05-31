@@ -89,6 +89,10 @@ export default {
 				heroLightBgTo: 'hsl(var(--hero-gradient-to-light))',
 				heroDarkBgFrom: 'hsl(var(--hero-gradient-from-dark))',
 				heroDarkBgTo: 'hsl(var(--hero-gradient-to-dark))',
+				// Custom glow colors for dark mode background props
+				glowPurple: 'hsl(var(--glow-purple))',
+				glowBlue: 'hsl(var(--glow-blue))',
+				glowPink: 'hsl(var(--glow-pink))',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

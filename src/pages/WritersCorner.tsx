@@ -285,9 +285,9 @@ const WritersCorner = () => {
         </motion.div>
 
         {isCreating && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
             className="glass p-8 rounded-2xl shadow-lg mb-12"
           >
             <h2 className="text-2xl font-bold text-foreground mb-6">
@@ -315,14 +315,14 @@ const WritersCorner = () => {
                       <button type="button" onClick={() => handleTagRemove(tag)} className="ml-1 text-destructive hover:text-destructive/80">x</button>
                     </span>
                   ))}
-                </div>
+            </div>
                 <div className="flex space-x-2">
                   <Input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTagAdd(); } }} placeholder="Add a tag" className="glass-input flex-grow" />
                   <Button type="button" onClick={handleTagAdd} className="bg-secondary hover:bg-secondary/80 text-secondary-foreground">
                     Add Tag
                   </Button>
-                </div>
-              </div>
+          </div>
+            </div>
               <div className="mb-6">
                 <Label htmlFor="imageLink" className="block text-foreground text-sm font-bold mb-2">Embed Image Link</Label>
                 <div className="flex space-x-2">
@@ -330,7 +330,7 @@ const WritersCorner = () => {
                   <Button type="button" onClick={handleImageLinkAdd} className="bg-secondary hover:bg-secondary/80 text-secondary-foreground">
                     Add Link
                   </Button>
-                </div>
+          </div>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   {currentBlog.images.map((image, index) => (
                     <div key={index} className="relative group">
@@ -338,10 +338,10 @@ const WritersCorner = () => {
                       <button type="button" onClick={() => handleImageRemove(image)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
                         <X size={14} />
                       </button>
-                    </div>
+            </div>
                   ))}
-                </div>
-              </div>
+          </div>
+            </div>
               
               {error && <p className="text-destructive text-sm mb-4">Error: {error.message}</p>}
 
@@ -355,9 +355,9 @@ const WritersCorner = () => {
                 <Button type="button" onClick={() => { setIsCreating(false); setIsEditing(false); setNewImageLink(''); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true }); }} variant="ghost">
                   Cancel
                 </Button>
-              </div>
+          </div>
             </form>
-          </motion.div>
+        </motion.div>
         )}
 
         <motion.div
@@ -372,14 +372,14 @@ const WritersCorner = () => {
           {loading && <p className="text-center text-muted-foreground">Loading your stories...</p>}
           {error && <p className="text-center text-destructive">Error loading stories.</p>}
           {!loading && !myBlogs.length && <p className="text-center text-muted-foreground">You haven't written any stories yet. Start by creating a new one!</p>}
-
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {myBlogs.map((blog) => (
               blog._id && (
                 <motion.div
                   key={blog._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
                   className="relative group"
                 >
@@ -406,10 +406,10 @@ const WritersCorner = () => {
 
         {/* Live Preview */}
         {!isCreating && !isEditing && currentBlog.title && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
             className="mt-12 p-8 rounded-2xl glass shadow-lg"
           >
             <h2 className="text-2xl font-bold text-foreground mb-6">Live Preview</h2>
@@ -445,7 +445,7 @@ const WritersCorner = () => {
                 <Markdown>{currentBlog.content}</Markdown>
               </div>
             </div>
-          </motion.div>
+        </motion.div>
         )}
 
       </div>
