@@ -9,11 +9,13 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 import MainLayout from './layout/MainLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
 import Blogs from './pages/Blogs';
 import Login from './pages/Login';
 import WritersCorner from './pages/WritersCorner';
 import BlogDetail from './pages/BlogDetail';
+import LikedBlogs from './pages/LikedBlogs';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -27,11 +29,17 @@ const App = () => {
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <ScrollToTop />
               <Routes>
                 <Route path="/" element={<MainLayout />}>
                   <Route index element={<Home />} />
                   <Route path="blogs" element={<Blogs />} />
                   <Route path="blogs/:id" element={<BlogDetail />} />
+                  <Route path="liked-blogs" element={
+                    <ProtectedRoute>
+                      <LikedBlogs />
+                    </ProtectedRoute>
+                  } />
                   <Route path="writers-corner" element={
                     <ProtectedRoute>
                       <WritersCorner />

@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -67,25 +66,35 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Minimal color palette
+				// Custom Colors (mapping CSS variables to Tailwind)
+				orange: {
+					500: 'hsl(var(--orange-500))',
+					600: 'hsl(var(--orange-600))',
+				},
 				slate: {
-					50: '#f8fafc',
-					100: '#f1f5f9',
-					200: '#e2e8f0',
-					300: '#cbd5e1',
-					400: '#94a3b8',
-					500: '#64748b',
-					600: '#475569',
-					700: '#334155',
-					800: '#1e293b',
-					900: '#0f172a',
-					950: '#020617',
+					50: 'hsl(var(--slate-50))',
+					100: 'hsl(var(--slate-100))',
+					200: 'hsl(var(--slate-200))',
+					300: 'hsl(var(--slate-300))',
+					400: 'hsl(var(--slate-400))',
+					500: 'hsl(var(--slate-500))',
+					600: 'hsl(var(--slate-600))',
+					700: 'hsl(var(--slate-700))',
+					800: 'hsl(var(--slate-800))',
+					900: 'hsl(var(--slate-900))',
+					950: 'hsl(var(--slate-950))',
 				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				sm: 'calc(var(--radius) - 4px)',
+				DEFAULT: 'var(--radius)',
+				xl: '1rem',
+				'2xl': '1.5rem',
+				'3xl': '2rem',
+				'4xl': '2.5rem',
+				full: '9999px',
 			},
 			keyframes: {
 				'accordion-down': {
@@ -131,6 +140,16 @@ export default {
 					'50%': {
 						transform: 'translateY(-5px)'
 					}
+				},
+				'ripple': {
+					'0%': {
+						transform: 'scale(0)',
+						opacity: '0.2'
+					},
+					'100%': {
+						transform: 'scale(1)',
+						opacity: '0'
+					}
 				}
 			},
 			animation: {
@@ -139,6 +158,7 @@ export default {
 				'fade-in': 'fade-in 0.3s ease-out',
 				'scale-in': 'scale-in 0.2s ease-out',
 				'float': 'float 6s ease-in-out infinite',
+				'ripple': 'ripple 0.6s linear'
 			},
 		}
 	},

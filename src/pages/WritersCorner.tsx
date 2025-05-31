@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import Markdown from 'react-markdown';
 import BlogCard from '../components/BlogCard';
+import { Link } from 'react-router-dom';
 
 interface WriterStats {
   storiesWritten: number;
@@ -57,7 +58,7 @@ const WritersCorner = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const getFullImageUrl = (path) => {
-    if (!path) return ''; // Return empty string for WritersCorner as it might not always have a placeholder
+    if (!path) return '/placeholder-image.png';
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
@@ -100,6 +101,35 @@ const WritersCorner = () => {
       return () => clearInterval(interval);
     }
   }, [currentBlog]);
+
+  const handleLikeToggle = async (blogId: string) => {
+    if (!user || !token) {
+      toast({
+        title: 'Authentication Required',
+        description: 'You need to be logged in to like a post.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${blogId}/like`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMyBlogs(prevBlogs => 
+        prevBlogs.map(blog => 
+          blog._id === blogId ? { ...blog, likes: response.data.likes } : blog
+        )
+      );
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update like status.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -231,7 +261,7 @@ const WritersCorner = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black py-8">
+    <div className="min-h-screen bg-background py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -239,15 +269,15 @@ const WritersCorner = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+          <h1 className="text-4xl font-bold text-foreground mb-4">
             Writers Corner
           </h1>
-          <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
             Share your travel stories and connect with fellow writers from around the world
           </p>
           <Button
-            onClick={() => { setIsCreating(true); setIsEditing(false); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true }); }}
-            className="bg-slate-900 dark:bg-slate-100 text-white dark:text-black hover:bg-slate-800 dark:hover:bg-slate-200"
+            onClick={() => { setIsCreating(true); setIsEditing(false); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true }); setCurrentImageIndex(0); }}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <PenTool className="w-4 h-4 mr-2" />
             Create New Story
@@ -260,44 +290,44 @@ const WritersCorner = () => {
             animate={{ opacity: 1, y: 0 }}
             className="glass p-8 rounded-2xl shadow-lg mb-12"
           >
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
+            <h2 className="text-2xl font-bold text-foreground mb-6">
               {isEditing ? 'Edit Your Story' : 'Create New Story'}
             </h2>
             <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
               <div className="mb-4">
-                <Label htmlFor="title" className="block text-slate-700 dark:text-slate-300 text-sm font-bold mb-2">Title</Label>
+                <Label htmlFor="title" className="block text-foreground text-sm font-bold mb-2">Title</Label>
                 <Input type="text" id="title" name="title" value={currentBlog.title} onChange={handleInputChange} required className="glass-input" />
               </div>
               <div className="mb-4">
-                <Label htmlFor="subtitle" className="block text-slate-700 dark:text-slate-300 text-sm font-bold mb-2">Subtitle</Label>
+                <Label htmlFor="subtitle" className="block text-foreground text-sm font-bold mb-2">Subtitle</Label>
                 <Input type="text" id="subtitle" name="subtitle" value={currentBlog.subtitle} onChange={handleInputChange} className="glass-input" />
               </div>
               <div className="mb-4">
-                <Label htmlFor="content" className="block text-slate-700 dark:text-slate-300 text-sm font-bold mb-2">Content (Markdown supported)</Label>
+                <Label htmlFor="content" className="block text-foreground text-sm font-bold mb-2">Content (Markdown supported)</Label>
                 <Textarea id="content" name="content" value={currentBlog.content} onChange={handleInputChange} required className="glass-textarea h-48" />
               </div>
               <div className="mb-4">
-                <Label htmlFor="tags" className="block text-slate-700 dark:text-slate-300 text-sm font-bold mb-2">Tags (comma-separated)</Label>
+                <Label htmlFor="tags" className="block text-foreground text-sm font-bold mb-2">Tags (comma-separated)</Label>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   {currentBlog.tags.map((tag, index) => (
-                    <span key={index} className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                    <span key={index} className="bg-secondary text-secondary-foreground text-xs px-3 py-1 rounded-full flex items-center gap-1">
                       {tag}
-                      <button type="button" onClick={() => handleTagRemove(tag)} className="ml-1 text-red-500 hover:text-red-700">x</button>
+                      <button type="button" onClick={() => handleTagRemove(tag)} className="ml-1 text-destructive hover:text-destructive/80">x</button>
                     </span>
                   ))}
                 </div>
                 <div className="flex space-x-2">
                   <Input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTagAdd(); } }} placeholder="Add a tag" className="glass-input flex-grow" />
-                  <Button type="button" onClick={handleTagAdd} className="bg-slate-700 hover:bg-slate-600 dark:bg-slate-300 dark:hover:bg-slate-400 text-white dark:text-black">
+                  <Button type="button" onClick={handleTagAdd} className="bg-secondary hover:bg-secondary/80 text-secondary-foreground">
                     Add Tag
                   </Button>
                 </div>
               </div>
               <div className="mb-6">
-                <Label htmlFor="imageLink" className="block text-slate-700 dark:text-slate-300 text-sm font-bold mb-2">Embed Image Link</Label>
+                <Label htmlFor="imageLink" className="block text-foreground text-sm font-bold mb-2">Embed Image Link</Label>
                 <div className="flex space-x-2">
                   <Input type="url" id="imageLink" name="imageLink" value={newImageLink} onChange={(e) => setNewImageLink(e.target.value)} placeholder="Paste image URL" className="glass-input flex-grow" />
-                  <Button type="button" onClick={handleImageLinkAdd} className="bg-slate-700 hover:bg-slate-600 dark:bg-slate-300 dark:hover:bg-slate-400 text-white dark:text-black">
+                  <Button type="button" onClick={handleImageLinkAdd} className="bg-secondary hover:bg-secondary/80 text-secondary-foreground">
                     Add Link
                   </Button>
                 </div>
@@ -305,7 +335,7 @@ const WritersCorner = () => {
                   {currentBlog.images.map((image, index) => (
                     <div key={index} className="relative group">
                       <img src={getFullImageUrl(image)} alt={`Image ${index + 1}`} className="w-24 h-24 object-cover rounded-md" />
-                      <button type="button" onClick={() => handleImageRemove(image)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button type="button" onClick={() => handleImageRemove(image)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
                         <X size={14} />
                       </button>
                     </div>
@@ -313,13 +343,13 @@ const WritersCorner = () => {
                 </div>
               </div>
               
-              {error && <p className="text-red-500 text-sm mb-4">Error: {error.message}</p>}
+              {error && <p className="text-destructive text-sm mb-4">Error: {error.message}</p>}
 
               <div className="flex space-x-4">
-                <Button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
+                <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90 text-primary-foreground">
                   {loading ? 'Saving...' : (isEditing ? 'Update Story' : 'Publish Story')}
                 </Button>
-                <Button type="button" onClick={() => handleSubmit(false)} disabled={loading} variant="outline" className="border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                <Button type="button" onClick={() => handleSubmit(false)} disabled={loading} variant="outline" className="border-border text-foreground hover:bg-accent hover:text-accent-foreground">
                   Save as Draft
                 </Button>
                 <Button type="button" onClick={() => { setIsCreating(false); setIsEditing(false); setNewImageLink(''); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true }); }} variant="ghost">
@@ -336,12 +366,12 @@ const WritersCorner = () => {
           transition={{ delay: 0.4 }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-8">
             My Stories
           </h2>
-          {loading && <p className="text-center text-slate-600 dark:text-slate-400">Loading your stories...</p>}
-          {error && <p className="text-center text-red-500">Error loading stories.</p>}
-          {!loading && !myBlogs.length && <p className="text-center text-slate-600 dark:text-slate-400">You haven't written any stories yet. Start by creating a new one!</p>}
+          {loading && <p className="text-center text-muted-foreground">Loading your stories...</p>}
+          {error && <p className="text-center text-destructive">Error loading stories.</p>}
+          {!loading && !myBlogs.length && <p className="text-center text-muted-foreground">You haven't written any stories yet. Start by creating a new one!</p>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {myBlogs.map((blog) => (
@@ -351,14 +381,21 @@ const WritersCorner = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
+                  className="relative group"
                 >
-                  <BlogCard {...blog} />
-                  <div className="flex items-center justify-end space-x-2 mt-4">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(blog)}>
-                      <Edit className="w-4 h-4 mr-1" /> Edit
+                  <Link to={`/blogs/${blog._id}`}>
+                    <BlogCard 
+                      {...blog} 
+                      isLiked={user ? blog.likes.includes(user.id) : false} 
+                      onLikeToggle={handleLikeToggle} 
+                    />
+                  </Link>
+                  <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <Button variant="secondary" size="sm" onClick={() => handleEdit(blog)} className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-3xl">
+                      <Edit size={16} />
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleDelete(blog._id)}>
-                      <Trash2 className="w-4 h-4 mr-1" /> Delete
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(blog._id)} className="rounded-3xl">
+                      <Trash2 size={16} />
                     </Button>
                   </div>
                 </motion.div>
@@ -367,56 +404,47 @@ const WritersCorner = () => {
           </div>
         </motion.div>
 
-        {/* Preview Section */}
-        {currentBlog.title && currentBlog.content && (
+        {/* Live Preview */}
+        {!isCreating && !isEditing && currentBlog.title && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass p-8 rounded-2xl shadow-lg mb-12"
+            transition={{ delay: 0.6 }}
+            className="mt-12 p-8 rounded-2xl glass shadow-lg"
           >
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">Preview</h2>
-            <article className="prose dark:prose-invert max-w-none blog-content">
-              <h1 className="text-3xl font-bold mb-2">{currentBlog.title}</h1>
-              {currentBlog.subtitle && <h2 className="text-xl text-slate-600 dark:text-slate-400 mb-4">{currentBlog.subtitle}</h2>}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {currentBlog.tags.map(tag => (
-                  <span key={tag} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs px-2 py-1 rounded-full">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              {currentBlog.images?.length > 0 && (
-                <div className="relative w-full h-96 rounded-lg overflow-hidden mb-6 group">
-                  <img src={currentBlog.images[currentImageIndex]} alt={currentBlog.title} className="w-full h-full object-cover transition-transform duration-300" />
+            <h2 className="text-2xl font-bold text-foreground mb-6">Live Preview</h2>
+            <div className="prose dark:prose-invert max-w-none text-foreground">
+              <h1 className="text-4xl font-bold mb-2">{currentBlog.title}</h1>
+              {currentBlog.subtitle && <h2 className="text-2xl text-muted-foreground mb-4">{currentBlog.subtitle}</h2>}
+              {currentBlog.images && currentBlog.images.length > 0 && (
+                <div className="relative h-64 w-full overflow-hidden rounded-lg mb-6">
+                  <img
+                    src={getFullImageUrl(currentBlog.images[currentImageIndex])}
+                    alt={currentBlog.title}
+                    className="w-full h-full object-cover"
+                  />
+                  {currentBlog.images.length > 1 && (
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2">
+                      {currentBlog.images.map((_, idx) => (
+                        <span
+                          key={idx}
+                          className={`block w-2 h-2 rounded-full ${idx === currentImageIndex ? 'bg-orange-500' : 'bg-gray-400'}`}
+                        />
+                      ))}
+                    </div>
+                  )}
                   {currentBlog.images.length > 1 && (
                     <>
-                      <button
-                        onClick={() => setCurrentImageIndex((prevIndex) => (prevIndex === 0 ? currentBlog.images.length - 1 : prevIndex - 1))}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                      >
-                        <ArrowLeft size={24} />
-                      </button>
-                      <button
-                        onClick={() => setCurrentImageIndex((prevIndex) => (prevIndex === currentBlog.images.length - 1 ? 0 : prevIndex + 1))}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                      >
-                        <ArrowRight size={24} />
-                      </button>
-                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
-                        {currentBlog.images.map((_, idx) => (
-                          <span
-                            key={idx}
-                            className={`w-2 h-2 rounded-full ${currentImageIndex === idx ? 'bg-white' : 'bg-white/50'} cursor-pointer`}
-                            onClick={() => setCurrentImageIndex(idx)}
-                          />
-                        ))}
-                      </div>
+                      <Button onClick={() => setCurrentImageIndex((prev) => (prev - 1 + currentBlog.images.length) % currentBlog.images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-primary/50 hover:bg-primary/70 text-primary-foreground rounded-full p-2"><ArrowLeft size={20} /></Button>
+                      <Button onClick={() => setCurrentImageIndex((prev) => (prev + 1) % currentBlog.images.length)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary/50 hover:bg-primary/70 text-primary-foreground rounded-full p-2"><ArrowRight size={20} /></Button>
                     </>
                   )}
                 </div>
               )}
-              <Markdown>{currentBlog.content}</Markdown>
-            </article>
+              <div className="text-foreground">
+                <Markdown>{currentBlog.content}</Markdown>
+              </div>
+            </div>
           </motion.div>
         )}
 

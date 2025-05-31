@@ -6,16 +6,19 @@ import TagChip from '../components/TagChip';
 import SearchBar from '../components/SearchBar';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Blogs = () => {
   const { toast } = useToast();
+  const { user, token } = useAuth();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [allBlogs, setAllBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchAllBlogs = async () => {
@@ -39,6 +42,35 @@ const Blogs = () => {
     fetchAllBlogs();
   }, []);
 
+  const handleLikeToggle = async (blogId: string) => {
+    if (!user || !token) {
+      toast({
+        title: 'Authentication Required',
+        description: 'You need to be logged in to like a post.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${blogId}/like`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAllBlogs(prevBlogs => 
+        prevBlogs.map(blog => 
+          blog._id === blogId ? { ...blog, likes: response.data.likes } : blog
+        )
+      );
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update like status.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const allTags = Array.from(new Set(allBlogs.flatMap(blog => blog.tags || [])));
 
   const filteredBlogs = allBlogs.filter(blog => 
@@ -54,7 +86,7 @@ const Blogs = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-background">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -62,10 +94,10 @@ const Blogs = () => {
         transition={{ duration: 0.6 }}
         className="text-center mb-12"
       >
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
           Travel Stories
         </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
           Discover amazing adventures and experiences shared by travelers from around the world.
         </p>
       </motion.div>
@@ -87,14 +119,14 @@ const Blogs = () => {
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-3xl hover:bg-secondary/80 transition-colors"
             >
               <Filter size={18} />
               <span>Filters</span>
             </button>
             
             {selectedTags.length > 0 && (
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm text-muted-foreground">
                 {filteredBlogs.length} stories found
               </span>
             )}
@@ -103,20 +135,20 @@ const Blogs = () => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-2 rounded-3xl transition-colors ${
                 viewMode === 'grid'
                   ? 'bg-orange-500 text-white'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
               }`}
             >
               <Grid size={18} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-2 rounded-3xl transition-colors ${
                 viewMode === 'list'
                   ? 'bg-orange-500 text-white'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
               }`}
             >
               <List size={18} />
@@ -130,9 +162,9 @@ const Blogs = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-6"
+            className="bg-card text-card-foreground rounded-lg p-6 mb-6"
           >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
               Filter by Tags
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -158,26 +190,26 @@ const Blogs = () => {
       </motion.div>
 
       {/* Blog Grid */}
-      {loading && <p className="text-center text-slate-600 dark:text-slate-400">Loading stories...</p>}
-      {error && <p className="text-center text-red-500">Error loading stories.</p>}
+      {loading && <p className="text-center text-muted-foreground">Loading stories...</p>}
+      {error && <p className="text-center text-destructive">Error loading stories.</p>}
       {!loading && !filteredBlogs.length && (
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center py-16"
         >
-          <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Search className="w-12 h-12 text-gray-400" />
+          <div className="w-24 h-24 bg-muted text-muted-foreground rounded-full flex items-center justify-center mx-auto mb-6">
+            <Search className="w-12 h-12" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          <h3 className="text-xl font-semibold text-foreground mb-2">
             No stories found
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-muted-foreground mb-6">
             Try adjusting your filters or search terms.
           </p>
           <button
             onClick={() => setSelectedTags([])}
-            className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors"
+            className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-3xl transition-colors"
           >
             Clear Filters
           </button>
@@ -196,9 +228,20 @@ const Blogs = () => {
         >
           {filteredBlogs.map((blog, index) => (
             blog._id && (
-              <Link to={`/blogs/${blog._id}`} key={blog._id}>
-                <BlogCard {...blog} index={index} />
-              </Link>
+                  <motion.div
+                    key={blog._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <BlogCard 
+                      {...blog} 
+                      index={index} 
+                      isLiked={user ? (Array.isArray(blog.likes) && blog.likes.includes(user.id)) : false}
+                      onLikeToggle={handleLikeToggle}
+                      onCardClick={() => navigate(`/blogs/${blog._id}`)}
+                    />
+                  </motion.div>
             )
           ))}
         </motion.div>

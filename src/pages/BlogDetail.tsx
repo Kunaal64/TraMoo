@@ -22,7 +22,7 @@ const BlogDetail = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const getFullImageUrl = (path) => {
-    if (!path) return 'https://via.placeholder.com/500x300?text=No+Image';
+    if (!path) return '/placeholder-image.png';
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
@@ -64,10 +64,10 @@ const BlogDetail = () => {
   }, [blog]);
 
   const handleLike = async () => {
-    if (!user || !token) {
+    if (!user || !token || !blog?._id) {
       toast({
         title: 'Authentication Required',
-        description: 'You need to be logged in to like a post.',
+        description: 'You need to be logged in to like a post or blog data is missing.',
         variant: 'destructive',
       });
       return;
@@ -75,12 +75,20 @@ const BlogDetail = () => {
     setIsLiking(true);
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${id}/like`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${blog._id}/like`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setBlog((prev) => ({ ...prev, likes: response.data.likes }));
+      setBlog((prev) => ({
+        ...prev,
+        likes: response.data.likes, // Ensure this is the full array from backend
+      }));
+      toast({
+        title: 'Success',
+        description: 'Like status updated.',
+      });
     } catch (err) {
+      console.error('Error updating like status:', err);
       toast({
         title: 'Error',
         description: 'Failed to update like status.',
@@ -140,10 +148,10 @@ const BlogDetail = () => {
     return <div className="min-h-screen flex items-center justify-center text-red-500">Error: Blog post not found.</div>;
   }
 
-  const isLikedByUser = user && blog.likes.includes(user.id);
+  const isLikedByUser = user && Array.isArray(blog.likes) && blog.likes.includes(user.id);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black py-8">
+    <div className="min-h-screen bg-background py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.article
           initial={{ opacity: 0, y: 20 }}
@@ -156,23 +164,23 @@ const BlogDetail = () => {
               <img src={getFullImageUrl(blog.images[currentImageIndex])} alt={blog.title} className="w-full h-full object-cover transition-transform duration-300" />
               {blog.images.length > 1 && (
                 <>
-                  <button
+                  <Button
                     onClick={() => setCurrentImageIndex((prevIndex) => (prevIndex === 0 ? blog.images.length - 1 : prevIndex - 1))}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-primary/50 hover:bg-primary/70 text-primary-foreground p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                   >
                     <ArrowLeft size={24} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => setCurrentImageIndex((prevIndex) => (prevIndex === blog.images.length - 1 ? 0 : prevIndex + 1))}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-primary/50 hover:bg-primary/70 text-primary-foreground p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                   >
                     <ArrowRight size={24} />
-                  </button>
+                  </Button>
                   <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
                     {blog.images.map((_, idx) => (
                       <span
                         key={idx}
-                        className={`w-2 h-2 rounded-full ${currentImageIndex === idx ? 'bg-white' : 'bg-white/50'} cursor-pointer`}
+                        className={`w-2 h-2 rounded-full ${currentImageIndex === idx ? 'bg-orange-500' : 'bg-muted-foreground/50'} cursor-pointer`}
                         onClick={() => setCurrentImageIndex(idx)}
                       />
                     ))}
@@ -182,38 +190,37 @@ const BlogDetail = () => {
             </div>
           )}
 
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">{blog.title}</h1>
-          {blog.subtitle && <h2 className="text-xl text-slate-600 dark:text-slate-400 mb-4">{blog.subtitle}</h2>}
+          <h1 className="text-4xl font-bold text-foreground mb-2">{blog.title}</h1>
+          {blog.subtitle && <h2 className="text-xl text-muted-foreground mb-4">{blog.subtitle}</h2>}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 dark:text-slate-400 mb-6">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
             <div className="flex items-center gap-1"><User size={16} /><span>{blog.author?.name}</span></div>
             <div className="flex items-center gap-1"><Calendar size={16} /><span>{new Date(blog.createdAt).toLocaleDateString()}</span></div>
-            <div className="flex items-center gap-1"><Clock size={16} /><span>{blog.readTime} min read</span></div>
             <button
               onClick={handleLike}
               disabled={isLiking}
-              className={`flex items-center gap-1 ${isLikedByUser ? 'text-red-500' : 'text-slate-500 hover:text-red-400'}`}
+              className={`flex items-center gap-1 ${isLikedByUser ? 'text-destructive' : 'text-muted-foreground hover:text-orange-500'}`}
             >
               <Heart size={16} fill={isLikedByUser ? 'currentColor' : 'none'} />
-              <span>{blog.likes.length}</span>
+              <span>{Array.isArray(blog.likes) ? blog.likes.length : 0}</span>
             </button>
             <div className="flex items-center gap-1"><MessageSquare size={16} /><span>{blog.comments.length}</span></div>
           </div>
 
-          <div className="prose dark:prose-invert max-w-none mb-8">
+          <div className="prose dark:prose-invert max-w-none text-foreground mb-8">
             <Markdown>{blog.content}</Markdown>
           </div>
 
           {/* Comments */}
-          <div className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-8">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">Comments ({blog.comments.length})</h3>
+          <div className="mt-8 border-t border-border pt-8">
+            <h3 className="text-2xl font-bold text-foreground mb-6">Comments ({blog.comments.length})</h3>
 
-            {blog.comments.length === 0 && <p className="text-slate-600 dark:text-slate-400">No comments yet.</p>}
+            {blog.comments.length === 0 && <p className="text-muted-foreground">No comments yet.</p>}
 
             <div className="space-y-6 mb-8">
               {blog.comments.map((comment, index) => (
-                <div key={index} className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-400 text-sm font-medium overflow-hidden">
+                <div key={index} className="bg-secondary p-4 rounded-lg flex gap-3">
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium overflow-hidden">
                     {comment.author?.avatar ? (
                       <img src={getFullImageUrl(comment.author.avatar)} alt="Avatar" className="w-full h-full object-cover rounded-full" />
                     ) : (
@@ -221,28 +228,28 @@ const BlogDetail = () => {
                     )}
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 dark:text-slate-100">{comment.author?.name || 'Anonymous'}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{new Date(comment.createdAt).toLocaleDateString()}</p>
-                    <p className="text-slate-700 dark:text-slate-300 mt-1">{comment.content}</p>
+                    <p className="font-semibold text-foreground">{comment.author?.name || 'Anonymous'}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</p>
+                    <p className="text-foreground mt-1">{comment.content}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             <form onSubmit={handleAddComment} className="mt-8 p-6 glass rounded-2xl shadow-lg">
-              <h4 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-4">Add a Comment</h4>
+              <h4 className="text-xl font-bold text-foreground mb-4">Add a Comment</h4>
               <Textarea
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
                 placeholder="Write your comment..."
                 rows={4}
-                className="mb-4"
+                className="mb-4 border border-input bg-background text-foreground"
                 required
               />
-              <Button type="submit" disabled={isCommenting || !user}>
+              <Button type="submit" disabled={isCommenting || !user} className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 {isCommenting ? 'Posting...' : 'Post Comment'}
               </Button>
-              {!user && <p className="text-red-500 text-sm mt-2">You must be logged in to comment.</p>}
+              {!user && <p className="text-destructive text-sm mt-2">You must be logged in to comment.</p>}
             </form>
           </div>
         </motion.article>

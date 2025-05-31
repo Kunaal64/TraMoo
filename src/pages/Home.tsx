@@ -1,25 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Camera, PenTool } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Camera, PenTool, ArrowDownCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BlogCard from '../components/BlogCard';
 import UserStats from '../components/UserStats';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '../context/AuthContext';
 
 const Home = () => {
   const { toast } = useToast();
+  const { user, token } = useAuth();
   const [featuredBlogs, setFeaturedBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchFeaturedBlogs = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/blogs?featured=true`);
+        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/blogs?_limit=3&_sort=createdAt&_order=desc`);
         setFeaturedBlogs(response.data.blogs || []);
       } catch (err) {
         console.error('Error fetching featured blogs:', err);
@@ -36,16 +39,45 @@ const Home = () => {
     fetchFeaturedBlogs();
   }, []);
 
+  const handleLikeToggle = async (blogId: string) => {
+    if (!user || !token) {
+      toast({
+        title: 'Authentication Required',
+        description: 'You need to be logged in to like a post.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${blogId}/like`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setFeaturedBlogs(prevBlogs => 
+        prevBlogs.map(blog => 
+          blog._id === blogId ? { ...blog, likes: response.data.likes } : blog
+        )
+      );
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update like status.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
+    <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden radial-glow">
+      <section className="relative min-h-screen-minus-navbar flex items-center justify-center overflow-hidden bg-gradient-to-r from-hero-light-bg-from to-hero-light-bg-to dark:from-background dark:to-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-5xl md:text-7xl font-bold text-slate-900 dark:text-slate-100 mb-6"
+            className="text-5xl md:text-7xl font-bold text-white mb-6 gradient-text-hero"
           >
             Wanderlust
           </motion.h1>
@@ -54,7 +86,7 @@ const Home = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl md:text-2xl text-slate-600 dark:text-slate-400 mb-8 max-w-3xl mx-auto"
+            className="text-xl md:text-2xl text-slate-200 dark:text-slate-400 mb-8 max-w-3xl mx-auto"
           >
             Discover the world through the eyes of fellow travelers. Share your stories, capture moments, and inspire others to explore.
           </motion.p>
@@ -67,30 +99,40 @@ const Home = () => {
           >
             <Button
               asChild
-              className="bg-slate-900 dark:bg-slate-100 text-white dark:text-black hover:bg-slate-800 dark:hover:bg-slate-200"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Link to="/blogs">
                 Explore Stories
-                <ArrowRight className="ml-2 h-4 w-4 text-white dark:text-black" />
+                <ArrowRight className="ml-2 h-4 w-4 text-primary-foreground" />
               </Link>
             </Button>
 
             <Button
               asChild
               variant="outline"
-              className="border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+              className="border-border text-foreground hover:bg-accent hover:text-accent-foreground"
             >
               <Link to="/blogs">
                 View All Stories
-                <ArrowRight className="ml-2 h-4 w-4 text-slate-900 dark:text-white" />
+                <ArrowRight className="ml-2 h-4 w-4 text-foreground" />
               </Link>
             </Button>
           </motion.div>
         </div>
+        {/* Scroll Down Indicator */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ repeat: Infinity, repeatType: "reverse", duration: 1, delay: 1 }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white cursor-pointer"
+          onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+        >
+          <ArrowDownCircle size={36} className="text-white" />
+        </motion.div>
       </section>
 
       {/* Community Stats */}
-      <section className="py-16 bg-slate-50/50 dark:bg-slate-950/50">
+      <section className="py-16 bg-card dark:bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -98,10 +140,10 @@ const Home = () => {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            <h2 className="text-3xl font-bold text-foreground mb-2">
               Our Community
             </h2>
-            <p className="text-lg text-slate-600 dark:text-slate-400">
+            <p className="text-lg text-muted-foreground">
               Join thousands of travelers sharing their adventures
             </p>
           </motion.div>
@@ -110,7 +152,7 @@ const Home = () => {
       </section>
 
       {/* Featured Stories */}
-      <section className="py-16">
+      <section className="py-16 bg-background dark:bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -118,16 +160,16 @@ const Home = () => {
             transition={{ duration: 0.8, delay: 0.8 }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            <h2 className="text-3xl font-bold text-foreground mb-2">
               Featured Stories
             </h2>
-            <p className="text-lg text-slate-600 dark:text-slate-400">
+            <p className="text-lg text-muted-foreground">
               Discover inspiring travel stories from our community
             </p>
           </motion.div>
-          {loading && <p className="text-center text-slate-600 dark:text-slate-400">Loading featured stories...</p>}
-          {error && <p className="text-center text-red-500">Error loading featured stories.</p>}
-          {!loading && !featuredBlogs.length && <p className="text-center text-slate-600 dark:text-slate-400">No featured stories found.</p>}
+          {loading && <p className="text-center text-muted-foreground">Loading featured stories...</p>}
+          {error && <p className="text-center text-destructive">Error loading featured stories.</p>}
+          {!loading && !featuredBlogs.length && <p className="text-center text-muted-foreground">No featured stories found.</p>}
 
           {!loading && featuredBlogs.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
@@ -139,9 +181,12 @@ const Home = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
-                    <Link to={`/blogs/${blog._id}`}>
-                      <BlogCard {...blog} />
-                    </Link>
+                    <BlogCard 
+                      {...blog} 
+                      isLiked={user ? (Array.isArray(blog.likes) && blog.likes.includes(user.id)) : false} 
+                      onLikeToggle={handleLikeToggle}
+                      onCardClick={() => navigate(`/blogs/${blog._id}`)}
+                    />
                   </motion.div>
                 )
               ))}
@@ -158,11 +203,11 @@ const Home = () => {
             <Button
               asChild
               variant="outline"
-              className="border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+              className="border-border text-foreground hover:bg-accent hover:text-accent-foreground"
             >
               <Link to="/blogs">
                 View All Stories
-                <ArrowRight className="ml-2 h-4 w-4 text-slate-900 dark:text-white" />
+                <ArrowRight className="ml-2 h-4 w-4 text-foreground" />
               </Link>
             </Button>
           </motion.div>
@@ -170,7 +215,7 @@ const Home = () => {
       </section>
 
       {/* Call to Action */}
-      <section className="py-16 bg-slate-50/50 dark:bg-slate-950/50">
+      <section className="py-16 bg-card dark:bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -178,19 +223,19 @@ const Home = () => {
             transition={{ duration: 0.8, delay: 1.4 }}
             className="text-center glass p-12 rounded-2xl shadow-lg"
           >
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            <h2 className="text-3xl font-bold text-foreground mb-2">
               Start Your Journey
             </h2>
-            <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
               Whether you're capturing moments, writing stories, or simply exploring, there's a place for you in our community.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 asChild
-                className="bg-slate-900 dark:bg-slate-100 text-white dark:text-black hover:bg-slate-800 dark:hover:bg-slate-200"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 <Link to="/writers-corner">
-                  <PenTool className="mr-2 h-4 w-4 text-white dark:text-black" />
+                  <PenTool className="mr-2 h-4 w-4 text-primary-foreground" />
                   Write Your Story
                 </Link>
               </Button>

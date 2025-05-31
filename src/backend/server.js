@@ -218,7 +218,7 @@ app.get('/api/user-stats', async (req, res) => {
 app.get('/api/blogs', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query._limit || req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const query = {};
     if (req.query.author) {
@@ -235,6 +235,19 @@ app.get('/api/blogs', async (req, res) => {
 
     res.json({ blogs, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.get('/api/blogs/liked', async (req, res) => {
+  try {
+    const userId = extractUserId(req.headers.authorization);
+    if (!userId) return res.status(401).json({ message: 'Unauthorized: Please log in to view liked blogs.' });
+
+    const likedBlogs = await Blog.find({ likes: userId }).populate('author', 'name email avatar').sort({ createdAt: -1 });
+    res.json({ blogs: likedBlogs });
+  } catch (error) {
+    console.error('Error fetching liked blogs:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -352,7 +365,7 @@ app.post('/api/blogs/:id/like', async (req, res) => {
     }
     await blog.save();
 
-    res.json({ message: 'Like status updated', likes: blog.likes.length });
+    res.json({ message: 'Like status updated', likes: blog.likes });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

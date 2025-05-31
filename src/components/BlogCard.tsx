@@ -17,6 +17,9 @@ interface BlogCardProps {
   likes: string[];
   comments: any[]; // Consider a more specific type if needed
   index?: number;
+  isLiked?: boolean;
+  onLikeToggle?: (_id: string) => void; // Function to call when like button is toggled
+  onCardClick?: () => void; // New prop for card click navigation
 }
 
 const BlogCard: React.FC<BlogCardProps> = ({
@@ -33,6 +36,9 @@ const BlogCard: React.FC<BlogCardProps> = ({
   likes,
   comments,
   index = 0,
+  isLiked = false,
+  onLikeToggle,
+  onCardClick
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -46,7 +52,7 @@ const BlogCard: React.FC<BlogCardProps> = ({
   }, [images]);
 
   const getFullImageUrl = (path) => {
-    if (!path) return 'https://via.placeholder.com/500x300?text=No+Image';
+    if (!path) return '/placeholder-image.png';
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
@@ -64,14 +70,15 @@ const BlogCard: React.FC<BlogCardProps> = ({
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: index * 0.1 }}
-      className="group cursor-pointer"
+      className="group hover:scale-[1.02] transition-transform duration-300"
     >
-      <div className="glass rounded-2xl overflow-hidden border border-slate-200/50 dark:border-slate-800/50 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/20 dark:hover:shadow-black/20">
+      <div className="glass rounded-2xl overflow-hidden border border-slate-200/50 dark:border-slate-800/50 shadow-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/20 dark:hover:shadow-black/20">
         <div className="relative h-48 overflow-hidden">
           <img
             src={imageUrl}
             alt={title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
+            onClick={onCardClick}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="absolute top-4 left-4">
@@ -84,15 +91,20 @@ const BlogCard: React.FC<BlogCardProps> = ({
             </motion.div> */}
           </div>
           <motion.button
-            className="absolute top-4 right-4 w-8 h-8 glass rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            onClick={(e) => {
+              e.preventDefault(); // Prevent navigating to blog detail
+              e.stopPropagation(); // Prevent event from bubbling up to Link
+              if (onLikeToggle) onLikeToggle(_id);
+            }}
+            className={`absolute top-4 left-4 w-8 h-8 glass rounded-full flex items-center justify-center ${isLiked ? 'text-red-500' : 'text-white opacity-0 group-hover:opacity-100'} transition-all duration-300`}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >
-            <Heart size={16} />
+            <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} />
           </motion.button>
         </div>
         
-        <div className="p-6">
+        <div className="p-6 cursor-pointer" onClick={onCardClick}>
           <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-all duration-300">
             {title}
           </h3>
@@ -134,10 +146,6 @@ const BlogCard: React.FC<BlogCardProps> = ({
               <div className="flex items-center space-x-1">
                 <MessageSquare size={14} />
                 <span>{comments.length}</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Clock size={14} />
-                <span>{readTime} min read</span>
               </div>
             </div>
           </div>
