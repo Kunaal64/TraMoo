@@ -19,7 +19,6 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get the previous location from state or default to home
   const from = location.state?.from?.pathname || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,7 +47,6 @@ const Login = () => {
           title: isLogin ? 'Login successful!' : 'Account created successfully!',
           description: `Welcome ${data.user.name}!`,
         });
-        // Redirect to the previous page or home
         navigate(from, { replace: true });
       } else {
         toast({
@@ -117,7 +115,7 @@ const Login = () => {
                     name="name"
                     type="text"
                     required={!isLogin}
-                    className="pl-10 bg-white/50 dark:bg-black/50"
+                    className="pl-10 bg-white dark:bg-slate-900"
                     placeholder="Enter your full name"
                     value={formData.name}
                     onChange={handleInputChange}
@@ -137,7 +135,7 @@ const Login = () => {
                   name="email"
                   type="email"
                   required
-                  className="pl-10 bg-white/50 dark:bg-black/50"
+                  className="pl-10 bg-white dark:bg-slate-900"
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleInputChange}
@@ -156,7 +154,7 @@ const Login = () => {
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   required
-                  className="pl-10 pr-10 bg-white/50 dark:bg-black/50"
+                  className="pl-10 pr-10 bg-white dark:bg-slate-900"
                   placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleInputChange}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Camera, PenTool, Users } from 'lucide-react';
@@ -26,6 +25,7 @@ const UserStats = () => {
           const data = await response.json();
           setStats(data);
         } else {
+          console.error('Server returned error:', response.status);
           // Fallback to mock data
           setStats({
             countriesExplored: 47,
