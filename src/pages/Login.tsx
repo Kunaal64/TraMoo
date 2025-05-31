@@ -105,7 +105,7 @@ const Login = () => {
           <div className="space-y-4">
             {!isLogin && (
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <label htmlFor="name\" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Full Name
                 </label>
                 <div className="relative">
