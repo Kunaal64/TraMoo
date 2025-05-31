@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Menu, X, User, PenTool, BookOpen, Compass, Heart } from 'lucide-react';
@@ -9,6 +9,7 @@ import SearchBar from './SearchBar';
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -31,13 +32,33 @@ const Navbar = () => {
     window.location.reload();
   };
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 0);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  const navbarBgClass = theme === 'dark' ? 'bg-neutral-900/90 backdrop-blur-md' : 'bg-gray-200/90 backdrop-blur-md';
+
   return (
     <>
       <motion.nav 
-        className="fixed top-0 w-full z-50 glass bg-background border-b border-border"
+        className={`fixed top-0 w-full z-50 transition-all duration-300 ${navbarBgClass}`}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5 }}
+        style={{
+          willChange: 'transform, opacity',
+          boxShadow: theme === 'dark' 
+            ? '0 4px 10px -2px rgba(0, 0, 0, 0.2), 0 5px 25px rgba(0,0,0,0.8)' /* Darker, more pronounced blur */
+            : '0 4px 10px -2px rgba(0, 0, 0, 0.1), 0 5px 25px rgba(0,0,0,0.2)' /* Lighter, more pronounced blur */
+        }} /* Increased blur for bottom border */
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">

@@ -54,7 +54,6 @@ h1, h2, h3, h4, h5, h6 {
 /* Custom height for hero section */
 .min-h-screen-minus-navbar {
   min-height: calc(100vh - 4rem); /* Assuming navbar height is 4rem (h-16) */
-  transform: translateZ(0); /* Force new stacking context */
 }
 
 /* Glass effect */

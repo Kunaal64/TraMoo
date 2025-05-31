@@ -8,6 +8,7 @@ import UserStats from '../components/UserStats';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const Home = () => {
   const { toast } = useToast();
@@ -16,6 +17,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   useEffect(() => {
     const fetchFeaturedBlogs = async () => {
@@ -73,22 +75,24 @@ const Home = () => {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section 
-        className="relative min-h-screen-minus-navbar flex items-center justify-center overflow-hidden"
+        className="relative min-h-screen-minus-navbar flex items-center justify-center"
+        style={{
+          backgroundImage: `url('/hero-dark-background.jpg')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed', /* For parallax effect */
+        }}
       >
-        {/* Hero Background Image Tag */}
-        <img 
-          src="/hero-dark-background.jpg" 
-          alt="Hero Background" 
-          className="absolute inset-0 w-full h-full object-cover dark:opacity-15 dark:mix-blend-luminosity light:opacity-100 light:mix-blend-normal z-[-2] transform translateZ(0)"
-        />
         {/* Overlay for text readability */}
-        <div className="absolute inset-0 dark:bg-black/60 bg-white/40 z-[-1]" />
+        <div className="absolute inset-0 dark:bg-black/50 bg-white/10" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-5xl md:text-7xl font-bold text-foreground mb-6 gradient-text-hero"
+            className="text-6xl md:text-8xl font-bold text-foreground mb-6 gradient-text-hero"
+            style={{ willChange: 'transform, opacity' }}
           >
             Wanderlust
           </motion.h1>
@@ -97,7 +101,8 @@ const Home = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl md:text-2xl text-foreground/80 dark:text-muted-foreground mb-8 max-w-3xl mx-auto"
+            className="text-xl md:text-2xl font-bold text-white dark:text-foreground mb-8 max-w-3xl mx-auto"
+            style={{ willChange: 'transform, opacity' }}
           >
             Discover the world through the eyes of fellow travelers. Share your stories, capture moments, and inspire others to explore.
           </motion.p>
@@ -107,6 +112,7 @@ const Home = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
             className="flex flex-col sm:flex-row gap-4 justify-center"
+            style={{ willChange: 'transform, opacity' }}
           >
             <Button
               asChild
@@ -143,7 +149,14 @@ const Home = () => {
       </section>
 
       {/* Community Stats */}
-      <section className="py-16 bg-card dark:bg-card">
+      <section 
+        className="py-16 bg-card dark:bg-card"
+        style={{
+          boxShadow: theme === 'dark' 
+            ? '0 -5px 25px rgba(0,0,0,0.8)' /* Darker, more pronounced blur */
+            : '0 -5px 25px rgba(0,0,0,0.2)' /* Lighter, more pronounced blur */
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
