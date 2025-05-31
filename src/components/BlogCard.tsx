@@ -75,7 +75,7 @@ const BlogCard: React.FC<BlogCardProps> = ({
       <div className="glass rounded-2xl overflow-hidden border border-slate-200/50 dark:border-slate-800/50 shadow-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/20 dark:hover:shadow-black/20">
         <div className="relative h-48 overflow-hidden">
           <img
-            src={getFullImageUrl(image || '/placeholder-image.png')}
+            src={imageUrl}
             alt={title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
             onClick={onCardClick}

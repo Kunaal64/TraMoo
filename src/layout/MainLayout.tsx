@@ -7,7 +7,7 @@ const MainLayout = () => {
   return (
     <div className="min-h-screen transition-colors">
       <Navbar />
-      <main className="flex-1 bg-background">
+      <main className="flex-1">
         <Outlet />
       </main>
       <Footer />

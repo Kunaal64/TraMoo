@@ -72,10 +72,17 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative min-h-screen-minus-navbar flex items-center justify-center overflow-hidden">
-        <div className="hero-radial-glow"></div>
-        {/* Hero Background Image - now handled by CSS with invert filter for light mode */}
-        <div className="hero-section-image"></div>
+      <section 
+        className="relative min-h-screen-minus-navbar flex items-center justify-center overflow-hidden"
+      >
+        {/* Hero Background Image Tag */}
+        <img 
+          src="/hero-dark-background.jpg" 
+          alt="Hero Background" 
+          className="absolute inset-0 w-full h-full object-cover dark:opacity-15 dark:mix-blend-luminosity light:opacity-100 light:mix-blend-normal z-[-2] transform translateZ(0)"
+        />
+        {/* Overlay for text readability */}
+        <div className="absolute inset-0 dark:bg-black/60 bg-white/40 z-[-1]" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
