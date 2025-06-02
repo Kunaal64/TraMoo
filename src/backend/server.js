@@ -14,12 +14,45 @@ const compression = require('compression');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
+const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000||8080;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const JWT_SECRET = process.env.JWT_SECRET;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
+
+// Initialize Google OAuth2Client
+const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
+
+// Helper to generate JWT
+const generateToken = (id) => {
+  return jwt.sign({ id }, JWT_SECRET, { expiresIn: '1h' });
+};
+
+// Middleware to protect routes and extract user
+const protect = (req, res, next) => {
+  let token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.user = decoded.id;
+      next();
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return res.status(401).json({ message: 'Not authorized, token failed' });
+    }
+  }
+  if (!token) {
+    return res.status(401).json({ message: 'Not authorized, no token' });
+  }
+};
 
 // Middleware
 app.use(cors());
@@ -88,7 +121,8 @@ const UserSchema = new mongoose.Schema({
   photosShared: { type: Number, default: 0 },
   storiesWritten: { type: Number, default: 0 },
   joinedAt: { type: Date, default: Date.now },
-  lastActive: { type: Date, default: Date.now }
+  lastActive: { type: Date, default: Date.now },
+  isGoogleUser: { type: Boolean, default: false },
 });
 
 UserSchema.index({ email: 1 }); // Index on email for faster lookups
@@ -125,12 +159,6 @@ const BlogSchema = new mongoose.Schema({
 const User = mongoose.model('User', UserSchema);
 const Blog = mongoose.model('Blog', BlogSchema);
 
-// Helper to extract userId from dummy token
-const extractUserId = (authHeader) => {
-  if (!authHeader || !authHeader.startsWith('Bearer dummy-jwt-token-')) return null;
-  return authHeader.replace('Bearer dummy-jwt-token-', '');
-};
-
 // Routes
 
 // Auth Routes
@@ -154,7 +182,7 @@ app.post('/api/auth/register', [
     const user = new User({ name, email, password: hashedPassword });
     await user.save();
 
-    const token = `dummy-jwt-token-${user._id}`;
+    const token = generateToken(user._id);
     res.status(201).json({
       message: 'User created successfully',
       user: { id: user._id, name: user.name, email: user.email },
@@ -175,7 +203,7 @@ app.post('/api/auth/login', async (req, res) => {
     user.lastActive = new Date();
     await user.save();
 
-    const token = `dummy-jwt-token-${user._id}`;
+    const token = generateToken(user._id);
     res.json({
       message: 'Login successful',
       user: { id: user._id, name: user.name, email: user.email },
@@ -186,12 +214,83 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', async (req, res) => {
-  try {
-    const userId = extractUserId(req.headers.authorization);
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+// Google OAuth Login Route
+app.post('/api/auth/google', async (req, res) => {
+  const { code } = req.body; // Expecting 'code' from frontend
 
-    const user = await User.findById(userId).select('-password');
+  console.log('Received Google auth code:', code);
+
+  try {
+    // Exchange the authorization code for tokens
+    const { tokens } = await client.getToken(code);
+    console.log('Tokens received from Google:', tokens);
+
+    const idToken = tokens.id_token;
+
+    // Verify the idToken
+    const ticket = await client.verifyIdToken({
+      idToken: idToken,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // User exists
+      if (user.isGoogleUser) {
+        // Existing Google user, just log them in
+        user.avatar = picture || user.avatar;
+        user.lastActive = new Date();
+        await user.save();
+      } else {
+        // User exists but is NOT a Google user (registered traditionally)
+        return res.status(409).json({
+          message: 'This email is already registered. Please log in using your password, or link your Google account in your profile settings.',
+          code: 'EMAIL_ALREADY_EXISTS_NON_GOOGLE'
+        });
+      }
+    } else {
+      // User does not exist, create new Google user
+      user = new User({
+        name: name || email,
+        email,
+        password: 'google_oauth_user_no_password', // Placeholder, user can't login with this
+        avatar: picture || '',
+        isGoogleUser: true,
+      });
+      await user.save();
+
+      const appToken = generateToken(user._id);
+
+      return res.status(201).json({
+        message: 'Google login successful',
+        user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
+        token: appToken,
+        code: 'NEW_GOOGLE_USER'
+      });
+    }
+
+    const appToken = generateToken(user._id);
+
+    // For existing Google users, send 200 OK
+    res.status(200).json({
+      message: 'Google login successful',
+      user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
+      token: appToken,
+      code: 'EXISTING_GOOGLE_USER'
+    });
+
+  } catch (error) {
+    console.error('Google authentication error:', error);
+    res.status(401).json({ message: 'Google authentication failed', error: error.message });
+  }
+});
+
+app.get('/api/auth/me', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json({ user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar } });
@@ -242,7 +341,7 @@ app.get('/api/blogs', async (req, res) => {
 
 app.get('/api/blogs/liked', async (req, res) => {
   try {
-    const userId = extractUserId(req.headers.authorization);
+    const userId = req.user;
     if (!userId) return res.status(401).json({ message: 'Unauthorized: Please log in to view liked blogs.' });
 
     const likedBlogs = await Blog.find({ likes: userId }).populate('author', 'name email avatar').sort({ createdAt: -1 });
@@ -258,7 +357,6 @@ app.get('/api/blogs/:id', async (req, res) => {
     const blog = await Blog.findById(req.params.id).populate('author', 'name email avatar').populate('likes', 'name').populate({ path: 'comments.author', select: 'name avatar' });
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
 
-    // Increment views safely without triggering full validation
     await Blog.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }, { new: true, runValidators: false });
     
     res.json({ blog });
@@ -270,7 +368,7 @@ app.get('/api/blogs/:id', async (req, res) => {
 
 app.post('/api/blogs', async (req, res) => {
   try {
-    const authorId = extractUserId(req.headers.authorization);
+    const authorId = req.user;
     if (!authorId) return res.status(401).json({ message: 'Unauthorized' });
 
     const { title, subtitle, content, excerpt, tags, images, location, featured, published, readTime } = req.body;
@@ -300,10 +398,9 @@ app.post('/api/blogs', async (req, res) => {
   }
 });
 
-// New route to update a blog post
 app.put('/api/blogs/:id', async (req, res) => {
   try {
-    const authorId = extractUserId(req.headers.authorization);
+    const authorId = req.user;
     if (!authorId) return res.status(401).json({ message: 'Unauthorized' });
 
     const { id } = req.params;
@@ -325,10 +422,9 @@ app.put('/api/blogs/:id', async (req, res) => {
   }
 });
 
-// New route to delete a blog post
 app.delete('/api/blogs/:id', async (req, res) => {
   try {
-    const authorId = extractUserId(req.headers.authorization);
+    const authorId = req.user;
     if (!authorId) return res.status(401).json({ message: 'Unauthorized' });
 
     const { id } = req.params;
@@ -347,10 +443,9 @@ app.delete('/api/blogs/:id', async (req, res) => {
   }
 });
 
-// New route to like/unlike a blog post
 app.post('/api/blogs/:id/like', async (req, res) => {
   try {
-    const userId = extractUserId(req.headers.authorization);
+    const userId = req.user;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     const { id } = req.params;
@@ -372,10 +467,9 @@ app.post('/api/blogs/:id/like', async (req, res) => {
   }
 });
 
-// New route to add a comment to a blog post
 app.post('/api/blogs/:id/comment', async (req, res) => {
   try {
-    const userId = extractUserId(req.headers.authorization);
+    const userId = req.user;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     const { id } = req.params;
@@ -398,7 +492,6 @@ app.post('/api/blogs/:id/comment', async (req, res) => {
   }
 });
 
-// File upload route
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   console.log('Uploaded file:', req.file.filename);
@@ -406,16 +499,13 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   res.json({ message: 'File uploaded successfully', url: `/uploads/${req.file.filename}`, filename: req.file.filename });
 });
 
-// Health check
 app.get('/api/health', (req, res) => res.json({ message: 'Server is running', timestamp: new Date().toISOString() }));
 
-// Centralized Error Handling Middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Server error', error: err.message });
 });
 
-// Start server
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
 
 module.exports = app;

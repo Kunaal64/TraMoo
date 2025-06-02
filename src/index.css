@@ -176,6 +176,12 @@ h1, h2, h3, h4, h5, h6 {
   border: none; /* Remove any borders */
 }
 
+/* Temporary debugging class */
+.temp-debug-success {
+  background-color: #00FF00 !important; /* Bright green, undeniable */
+  color: #000000 !important; /* Black text for contrast */
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -205,6 +211,10 @@ h1, h2, h3, h4, h5, h6 {
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+
+    /* Custom Success Colors for Light Mode */
+    --success: 142 70% 49%; /* A slightly muted, aesthetic green */
+    --success-foreground: 210 40% 98%; /* White text for contrast */
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
@@ -256,6 +266,10 @@ h1, h2, h3, h4, h5, h6 {
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
+
+    /* Custom Success Colors for Dark Mode */
+    --success: 142 80% 25%; /* A darker, aesthetic green for dark mode */
+    --success-foreground: 210 40% 98%; /* White text for contrast */
 
     --border: 240 10% 15%; /* Darker border */
     --input: 240 10% 10%;

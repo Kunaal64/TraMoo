@@ -76,105 +76,105 @@ const Blogs = () => {
   return (
     <div className="py-12 bg-background min-h-screen px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-center mb-12"
+      >
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
+          Travel Stories
+        </h1>
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          Discover amazing adventures and experiences shared by travelers from around the world.
+        </p>
+      </motion.div>
+
+      {/* Search and View Mode Controls */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+        className="mb-8 flex flex-col sm:flex-row justify-between items-center gap-4"
+      >
+        {/* Search Bar */}
+        <div className="flex-grow mb-6 sm:mb-0">
+          <SearchBar />
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-2 rounded-3xl transition-colors ${
+              viewMode === 'grid'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            <Grid size={18} />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-2 rounded-3xl transition-colors ${
+              viewMode === 'list'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            <List size={18} />
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Blog Grid */}
+      {loading && <p className="text-center text-muted-foreground">Loading stories...</p>}
+      {error && <p className="text-center text-destructive">Error loading stories.</p>}
+      {!loading && !filteredBlogs.length && (
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
+          className="text-center py-16"
         >
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Travel Stories
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Discover amazing adventures and experiences shared by travelers from around the world.
+          <div className="w-24 h-24 bg-muted text-muted-foreground rounded-full flex items-center justify-center mx-auto mb-6">
+            <Search className="w-12 h-12" />
+          </div>
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            No stories found
+          </h3>
+          <p className="text-muted-foreground mb-6">
+            Try adjusting your search terms.
           </p>
         </motion.div>
-
-        {/* Search and View Mode Controls */}
+      )}
+      {!loading && filteredBlogs.length > 0 && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mb-8 flex flex-col sm:flex-row justify-between items-center gap-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className={`grid gap-8 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}
         >
-          {/* Search Bar */}
-          <div className="flex-grow mb-6 sm:mb-0">
-            <SearchBar />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-3xl transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-              }`}
-            >
-              <Grid size={18} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-3xl transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-              }`}
-            >
-              <List size={18} />
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Blog Grid */}
-        {loading && <p className="text-center text-muted-foreground">Loading stories...</p>}
-        {error && <p className="text-center text-destructive">Error loading stories.</p>}
-        {!loading && !filteredBlogs.length && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-16"
-          >
-            <div className="w-24 h-24 bg-muted text-muted-foreground rounded-full flex items-center justify-center mx-auto mb-6">
-              <Search className="w-12 h-12" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">
-              No stories found
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              Try adjusting your search terms.
-            </p>
-          </motion.div>
-        )}
-        {!loading && filteredBlogs.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className={`grid gap-8 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}
-          >
-            {filteredBlogs.map((blog, index) => (
-              blog._id && (
-                <motion.div
-                  key={blog._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
+          {filteredBlogs.map((blog, index) => (
+            blog._id && (
+              <motion.div
+                key={blog._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
                   className="p-2"
-                >
-                  <BlogCard 
-                    {...blog} 
-                    index={index} 
-                    isLiked={user ? (Array.isArray(blog.likes) && blog.likes.includes(user.id)) : false}
-                    onLikeToggle={handleLikeToggle}
-                    onCardClick={() => navigate(`/blogs/${blog._id}`)}
-                  />
-                </motion.div>
-              )
-            ))}
-          </motion.div>
-        )}
+              >
+                <BlogCard 
+                  {...blog} 
+                  index={index} 
+                  isLiked={user ? (Array.isArray(blog.likes) && blog.likes.includes(user.id)) : false}
+                  onLikeToggle={handleLikeToggle}
+                  onCardClick={() => navigate(`/blogs/${blog._id}`)}
+                />
+              </motion.div>
+            )
+          ))}
+        </motion.div>
+      )}
       </div>
     </div>
   );
