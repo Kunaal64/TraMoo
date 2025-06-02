@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { GoogleLogin, useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
+import { TOAST_REMOVE_DELAY } from '@/hooks/use-toast';
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(false);
@@ -45,9 +46,11 @@ const Login = () => {
           title: isLogin ? 'Login successful!' : 'Account created successfully!',
           description: `Welcome ${data.user.name}!`,
           variant: 'success',
-          icon: <CheckCircle className="h-5 w-5" />
+          icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
         });
-        navigate(from, { replace: true });
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, TOAST_REMOVE_DELAY + 500);
       } else {
         toast({ title: 'Error', description: data.message, variant: 'destructive' });
       }
@@ -76,7 +79,6 @@ const Login = () => {
       const data = response.data;
 
       if (response.status === 200) {
-        // Successful login for existing user
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
 
@@ -84,31 +86,31 @@ const Login = () => {
           title: 'Login successful!',
           description: `Welcome back ${data.user.name || data.user.email}!`,
           variant: 'success',
-          icon: <CheckCircle className="h-5 w-5" />
+          icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
         });
 
-        navigate(from, { replace: true });
-        window.location.reload();
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, TOAST_REMOVE_DELAY + 500);
       } else if (response.status === 201) {
-        // New user signed up via Google
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
 
         toast({
           title: 'Welcome!',
-          description: 'Your account has been created successfully.',
+          description: `Welcome ${data.user.name}!`,
           variant: 'success',
-          icon: <CheckCircle className="h-5 w-5" />
+          icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
         });
-        // Redirect new Google users to a profile setup or welcome page
-        navigate('/profile/setup'); // Assuming you have a route like this
+        setTimeout(() => {
+          navigate('/profile/setup');
+        }, TOAST_REMOVE_DELAY + 500);
       }
-    } catch (error: any) { // Explicitly type error as any for now
-      console.error('Google auth error:', error);
+    } catch (error: any) {
       const errorData = error.response?.data;
 
       if (error.response?.status === 409) {
-        if (errorData.code === 'EMAIL_ALREADY_EXISTS_NON_GOOGLE') { // Use the new code from backend
+        if (errorData.code === 'EMAIL_ALREADY_EXISTS_NON_GOOGLE') {
           toast({
             title: 'Account Exists',
             description: 'An account with this email already exists. Please sign in using your password, or link your Google account in your profile settings.',
@@ -124,7 +126,6 @@ const Login = () => {
             )
           });
         } else {
-          // Generic 409, perhaps for other conflict scenarios if any
           toast({
             title: 'Account Exists',
             description: errorData?.message || 'An account with this email already exists.',
@@ -144,7 +145,6 @@ const Login = () => {
   };
 
   const handleGoogleError = () => {
-    console.log('Google Login Failed');
     toast({
       title: 'Google Login Failed',
       description: 'Could not log in with Google. Please try again.',
@@ -178,8 +178,6 @@ const Login = () => {
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
             {isLogin ? 'Sign in to continue' : 'Start your journey with us'}
           </p>
-          {/* Debugging: Display current isLogin state */}
-          {/* <p className="text-xs text-red-500">isLogin: {String(isLogin)}</p> */}
         </div>
 
         <motion.form

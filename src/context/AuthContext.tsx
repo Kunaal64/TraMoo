@@ -41,15 +41,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      console.log('VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL);
-
       const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       setUser(response.data.user);
     } catch (error) {
-      console.error('Auth check failed:', error);
       localStorage.removeItem('token');
       setUser(null);
     } finally {
@@ -68,7 +65,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('token', token);
       setUser(user);
     } catch (error) {
-      console.error('Login failed:', error);
       throw error;
     }
   };
@@ -85,7 +81,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('token', token);
       setUser(user);
     } catch (error) {
-      console.error('Registration failed:', error);
       throw error;
     }
   };
@@ -107,7 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       setUser(response.data.user);
     } catch (error) {
-      console.error('User update failed:', error);
       throw error;
     }
   };

@@ -176,11 +176,7 @@ h1, h2, h3, h4, h5, h6 {
   border: none; /* Remove any borders */
 }
 
-/* Temporary debugging class */
-.temp-debug-success {
-  background-color: #00FF00 !important; /* Bright green, undeniable */
-  color: #000000 !important; /* Black text for contrast */
-}
+/* Removed Temporary debugging class */
 
 @tailwind base;
 @tailwind components;

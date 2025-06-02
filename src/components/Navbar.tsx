@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Menu, X, User, PenTool, BookOpen, Compass, Heart } from 'lucide-react';
+import { Search, Menu, X, User, PenTool, BookOpen, Compass, Heart, LogOut } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './ThemeToggle';
 import SearchBar from './SearchBar';
@@ -192,8 +192,9 @@ const Navbar = () => {
                   </Link>
                   <button
                     onClick={() => {handleLogout(); setIsOpen(false);}}
-                    className="flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
+                    <LogOut size={18} />
                     <span>Logout</span>
                   </button>
                 </>
