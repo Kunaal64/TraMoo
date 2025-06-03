@@ -50,6 +50,7 @@ const WritersCorner = () => {
     tags: [],
     images: [],
     published: true,
+    country: '',
   });
   const [myBlogs, setMyBlogs] = useState([]);
   const [newTag, setNewTag] = useState('');
@@ -126,14 +127,10 @@ const WritersCorner = () => {
       return;
     }
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${blogId}/like`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await apiService.likeBlog(blogId);
       setMyBlogs(prevBlogs => 
         prevBlogs.map(blog => 
-          blog._id === blogId ? { ...blog, likes: response.data.likes } : blog
+          blog._id === blogId ? { ...blog, likes: response.likes } : blog
         )
       );
     } catch (err) {
@@ -148,6 +145,7 @@ const WritersCorner = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setCurrentBlog({ ...currentBlog, [name]: value });
+    console.log('MyStories.tsx: currentBlog.content:', value);
   };
 
   const handleTagAdd = () => {
@@ -191,24 +189,17 @@ const WritersCorner = () => {
         tags: currentBlog.tags,
         images: imageUrls,
         published: isPublished,
+        country: currentBlog.country,
       };
 
       if (isEditing) {
-        await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/blogs/${currentBlog._id}`, blogData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        await apiService.updateBlog(currentBlog._id, blogData);
         toast({
           title: "Success",
           description: `Blog ${isPublished ? 'published' : 'saved as draft'} successfully.`, 
         });
       } else {
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/blogs`, blogData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        await apiService.createBlog(blogData);
         toast({
           title: "Success",
           description: `Blog ${isPublished ? 'published' : 'saved as draft'} successfully.`, 
@@ -226,6 +217,7 @@ const WritersCorner = () => {
         tags: [],
         images: [],
         published: true,
+        country: '',
       });
       fetchMyBlogs();
     } catch (err) {
@@ -244,7 +236,10 @@ const WritersCorner = () => {
   const handleEdit = (blog) => {
     setIsEditing(true);
     setIsCreating(true);
-    setCurrentBlog(blog);
+    setCurrentBlog({
+      ...blog,
+      country: blog.country || '',
+    });
   };
 
   const handleDelete = async (id) => {
@@ -290,7 +285,7 @@ const WritersCorner = () => {
             Share your travel stories and connect with fellow writers from around the world
           </p>
           <Button
-            onClick={() => { setIsCreating(true); setIsEditing(false); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true }); setCurrentImageIndex(0); }}
+            onClick={() => { setIsCreating(true); setIsEditing(false); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true, country: '' }); setCurrentImageIndex(0); }}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <PenTool className="w-4 h-4 mr-2" />
@@ -315,6 +310,10 @@ const WritersCorner = () => {
               <div className="mb-4">
                 <Label htmlFor="subtitle" className="block text-foreground text-sm font-bold mb-2">Subtitle</Label>
                 <Input type="text" id="subtitle" name="subtitle" value={currentBlog.subtitle} onChange={handleInputChange} className="glass-input" />
+              </div>
+              <div className="mb-4">
+                <Label htmlFor="country" className="block text-foreground text-sm font-bold mb-2">Country</Label>
+                <Input type="text" id="country" name="country" value={currentBlog.country} onChange={handleInputChange} className="glass-input" />
               </div>
               <div className="mb-4">
                 <Label htmlFor="content" className="block text-foreground text-sm font-bold mb-2">Content (Markdown supported)</Label>
@@ -366,7 +365,7 @@ const WritersCorner = () => {
                 <Button type="button" onClick={() => handleSubmit(false)} disabled={isFetchingBlogs} variant="outline" className="border-border text-foreground hover:bg-accent hover:text-accent-foreground">
                   Save as Draft
                 </Button>
-                <Button type="button" onClick={() => { setIsCreating(false); setIsEditing(false); setNewImageLink(''); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true }); }} variant="ghost">
+                <Button type="button" onClick={() => { setIsCreating(false); setIsEditing(false); setNewImageLink(''); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true, country: '' }); }} variant="ghost">
                   Cancel
                 </Button>
           </div>
@@ -419,7 +418,7 @@ const WritersCorner = () => {
         </motion.div>
 
         {/* Live Preview */}
-        {!isCreating && !isEditing && currentBlog.title && (
+        {currentBlog.content && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

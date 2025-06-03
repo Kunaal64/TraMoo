@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
 import { motion } from 'framer-motion';
 import Markdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Clock, User, Heart, MessageSquare, ArrowLeft, ArrowRight } from 'lucide-react';
+import { apiService } from '../utils/api';
 
 const BlogDetail = () => {
   const { id } = useParams();
@@ -38,8 +38,9 @@ const BlogDetail = () => {
       }
       setLoading(true);
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/blogs/${id}`);
-        setBlog(response.data.blog);
+        const response = await apiService.getBlogById(id);
+        console.log('BlogDetail.tsx: getBlogById response:', response);
+        setBlog(response);
       } catch (err) {
         setError(err);
         toast({
@@ -74,14 +75,10 @@ const BlogDetail = () => {
     }
     setIsLiking(true);
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${blog._id}/like`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await apiService.likeBlog(blog._id);
       setBlog((prev) => ({
         ...prev,
-        likes: response.data.likes, // Ensure this is the full array from backend
+        likes: response.likes, // Ensure this is the full array from backend
       }));
       toast({
         title: 'Success',
@@ -119,10 +116,9 @@ const BlogDetail = () => {
     }
     setIsCommenting(true);
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${id}/comment`,
-        { content: commentContent },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const response = await apiService.request(
+        `/blogs/${id}/comment`,
+        { method: 'POST', body: JSON.stringify({ content: commentContent }) }
       );
       setBlog((prev) => ({
         ...prev,

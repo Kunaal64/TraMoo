@@ -18,6 +18,7 @@ const Blogs = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
 
   interface BlogsResponse {
     blogs: any[];
@@ -30,7 +31,7 @@ const Blogs = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await apiService.getAllBlogs();
+        const response = await apiService.getAllBlogs(searchQuery);
         console.log('Blogs.tsx: API getAllBlogs response:', response);
         setAllBlogs(response || []);
       } catch (err) {
@@ -105,7 +106,7 @@ const Blogs = () => {
       >
         {/* Search Bar */}
         <div className="flex-grow mb-6 sm:mb-0">
-          <SearchBar />
+          <SearchBar onSearch={setSearchQuery} />
         </div>
 
         <div className="flex items-center space-x-2">

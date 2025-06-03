@@ -143,6 +143,7 @@ const BlogSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   tags: [{ type: String }],
   images: [{ type: String }],
+  country: { type: String },
   location: {
     name: String,
     coordinates: {
@@ -325,15 +326,22 @@ app.get('/api/user-stats', async (req, res) => {
 // Blog Routes
 app.get('/api/blogs', async (req, res) => {
   try {
-    const { tag, search, page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, search } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     let query = {};
-    if (tag) {
-      query.tags = tag;
-    }
     if (search) {
-      query.title = { $regex: search, $options: 'i' };
+      const searchRegex = new RegExp(search, 'i'); // Case-insensitive search
+      query = {
+        $or: [
+          { title: { $regex: searchRegex } },
+          { subtitle: { $regex: searchRegex } },
+          { content: { $regex: searchRegex } },
+          { excerpt: { $regex: searchRegex } },
+          { tags: { $regex: searchRegex } },
+          { country: { $regex: searchRegex } },
+        ],
+      };
     }
 
     const blogs = await Blog.find(query)
@@ -342,10 +350,11 @@ app.get('/api/blogs', async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
-    const totalBlogs = await Blog.countDocuments(query);
+    const total = await Blog.countDocuments(query);
 
-    res.json({ blogs, total: totalBlogs, page: parseInt(page), limit: parseInt(limit) });
+    res.json({ blogs, total, page: parseInt(page) });
   } catch (error) {
+    console.error('Backend: Error fetching blogs:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -391,20 +400,24 @@ app.get('/api/blogs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/blogs', protect, upload.array('images', 5), [
+app.post('/api/blogs', protect, upload.fields([{ name: 'images', maxCount: 10 }]), [
   body('title').notEmpty().withMessage('Title is required'),
   body('content').notEmpty().withMessage('Content is required'),
   body('excerpt').notEmpty().withMessage('Excerpt is required'),
+  body('country').notEmpty().withMessage('Country is required'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    req.files.forEach(file => fs.unlinkSync(file.path)); // Delete uploaded files on validation error
+    if (req.files && req.files.images && Array.isArray(req.files.images)) {
+      req.files.images.forEach(file => fs.unlinkSync(file.path)); // Delete uploaded files on validation error
+    }
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime } = req.body;
-    const images = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime, country } = req.body;
+    const images = (req.files && Array.isArray(req.files.images)) ? req.files.images.map(file => `/uploads/${file.filename}`) : [];
+    const parsedTags = tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [];
 
     const blog = new Blog({
       title,
@@ -412,8 +425,9 @@ app.post('/api/blogs', protect, upload.array('images', 5), [
       content,
       excerpt,
       author: req.user,
-      tags: tags ? JSON.parse(tags) : [],
+      tags: parsedTags,
       images,
+      country,
       location: locationName ? { name: locationName, coordinates: { lat: locationLat, lng: locationLng } } : undefined,
       featured: featured === 'true',
       published: published === 'true',
@@ -427,7 +441,9 @@ app.post('/api/blogs', protect, upload.array('images', 5), [
 
     res.status(201).json(blog);
   } catch (error) {
-    req.files.forEach(file => fs.unlinkSync(file.path)); // Delete uploaded files on server error
+    if (req.files && req.files.images && Array.isArray(req.files.images)) {
+      req.files.images.forEach(file => fs.unlinkSync(file.path)); // Delete uploaded files on server error
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -436,23 +452,30 @@ app.put('/api/blogs/:id', protect, upload.array('images', 5), [
   body('title').notEmpty().withMessage('Title is required'),
   body('content').notEmpty().withMessage('Content is required'),
   body('excerpt').notEmpty().withMessage('Excerpt is required'),
+  body('country').notEmpty().withMessage('Country is required'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    if (req.files) req.files.forEach(file => fs.unlinkSync(file.path));
+    if (req.files && Array.isArray(req.files)) {
+      req.files.forEach(file => fs.unlinkSync(file.path));
+    }
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime, existingImages } = req.body;
-    const newImages = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
-    const updatedImages = existingImages ? (Array.isArray(existingImages) ? existingImages : JSON.parse(existingImages)).concat(newImages) : newImages;
+    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime, existingImages, country } = req.body;
+    const newImages = Array.isArray(req.files) ? req.files.map(file => `/uploads/${file.filename}`) : [];
+    const parsedExistingImages = existingImages ? (Array.isArray(existingImages) ? existingImages : JSON.parse(existingImages)) : [];
+    const updatedImages = parsedExistingImages.concat(newImages);
+    const parsedTags = tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [];
 
     const blog = await Blog.findById(req.params.id);
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
 
     if (blog.author.toString() !== req.user) {
-      if (req.files) req.files.forEach(file => fs.unlinkSync(file.path));
+      if (req.files && Array.isArray(req.files)) {
+        req.files.forEach(file => fs.unlinkSync(file.path));
+      }
       return res.status(403).json({ message: 'Not authorized to update this blog' });
     }
 
@@ -460,8 +483,9 @@ app.put('/api/blogs/:id', protect, upload.array('images', 5), [
     blog.subtitle = subtitle;
     blog.content = content;
     blog.excerpt = excerpt;
-    blog.tags = tags ? JSON.parse(tags) : [];
+    blog.tags = parsedTags;
     blog.images = updatedImages;
+    blog.country = country;
     blog.location = locationName ? { name: locationName, coordinates: { lat: locationLat, lng: locationLng } } : undefined;
     blog.featured = featured === 'true';
     blog.published = published === 'true';
@@ -471,7 +495,9 @@ app.put('/api/blogs/:id', protect, upload.array('images', 5), [
     await blog.save();
     res.json(blog);
   } catch (error) {
-    if (req.files) req.files.forEach(file => fs.unlinkSync(file.path));
+    if (req.files && Array.isArray(req.files)) {
+      req.files.forEach(file => fs.unlinkSync(file.path));
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

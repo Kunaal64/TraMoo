@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -51,15 +50,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            >
-              <X size={16} />
-            </button>
-          )}
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
               className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             >
               <X size={16} />

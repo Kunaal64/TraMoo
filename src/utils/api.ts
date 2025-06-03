@@ -98,8 +98,8 @@ class ApiService {
     return Array.isArray(response.blogs) ? response.blogs : [];
   }
 
-  async getAllBlogs() {
-    const response = await this.request<any>('/blogs');
+  async getAllBlogs(query?: string) {
+    const response = await this.request<any>(`/blogs${query ? `?search=${encodeURIComponent(query)}` : ''}`);
     return Array.isArray(response.blogs) ? response.blogs : [];
   }
 
