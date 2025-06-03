@@ -11,6 +11,9 @@ import axios from 'axios';
 import Markdown from 'react-markdown';
 import BlogCard from '../components/BlogCard';
 import { Link } from 'react-router-dom';
+import { apiService } from '../utils/api';
+
+console.log('WritersCorner.tsx: Forced test log - V2');
 
 interface WriterStats {
   storiesWritten: number;
@@ -35,7 +38,7 @@ interface Story {
 
 const WritersCorner = () => {
   const { toast } = useToast();
-  const { user, token } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentBlog, setCurrentBlog] = useState({
@@ -51,7 +54,7 @@ const WritersCorner = () => {
   const [myBlogs, setMyBlogs] = useState([]);
   const [newTag, setNewTag] = useState('');
   const [newImageLink, setNewImageLink] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isFetchingBlogs, setIsFetchingBlogs] = useState(false);
   const [error, setError] = useState(null);
   const [isLiking, setIsLiking] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
@@ -65,19 +68,25 @@ const WritersCorner = () => {
     return `${import.meta.env.VITE_BACKEND_URL}${path}`;
   };
 
+  interface MyStoriesResponse {
+    blogs: any[];
+    total: number;
+    page: number;
+  }
+
   const fetchMyBlogs = async () => {
-    if (!user || !token) return;
-    setLoading(true);
+    console.log('Frontend: Attempting to fetch my blogs...');
+    if (!user || !token) {
+      console.log('Frontend: User or token not available, cannot fetch my blogs.', { user, token });
+      return;
+    }
+    setIsFetchingBlogs(true);
     try {
-      const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/blogs`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        params: { author: user.id }, // Assuming backend supports filtering by author
-      });
-      setMyBlogs(response.data.blogs || []);
+      const response = await apiService.request<MyStoriesResponse>('/blogs/my-stories');
+      console.log('Frontend: Successfully fetched my blogs:', response.blogs);
+      setMyBlogs(response.blogs || []);
     } catch (err) {
-      console.error('Error fetching my blogs:', err);
+      console.error('Frontend: Error fetching my blogs:', err);
       setError(err);
       toast({
         title: "Error",
@@ -85,13 +94,18 @@ const WritersCorner = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsFetchingBlogs(false);
     }
   };
 
   useEffect(() => {
-    fetchMyBlogs();
-  }, [user, token]);
+    console.log('Frontend: useEffect in WritersCorner triggered.');
+    if (!authLoading && user && token) {
+      fetchMyBlogs();
+    } else {
+      console.log('Frontend: Skipping fetchMyBlogs. AuthLoading:', authLoading, 'User:', user, 'Token:', token);
+    }
+  }, [user, token, authLoading]);
 
   useEffect(() => {
     if (currentBlog?.images && currentBlog.images.length > 1) {
@@ -164,7 +178,7 @@ const WritersCorner = () => {
   };
 
   const handleSubmit = async (isPublished = true) => {
-    setLoading(true);
+    setIsFetchingBlogs(true);
     setError(null);
     try {
       let imageUrls = [...currentBlog.images];
@@ -223,7 +237,7 @@ const WritersCorner = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsFetchingBlogs(false);
     }
   };
 
@@ -234,7 +248,7 @@ const WritersCorner = () => {
   };
 
   const handleDelete = async (id) => {
-    setLoading(true);
+    setIsFetchingBlogs(true);
     setError(null);
     try {
       await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/api/blogs/${id}`, {
@@ -256,7 +270,7 @@ const WritersCorner = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsFetchingBlogs(false);
     }
   };
 
@@ -346,10 +360,10 @@ const WritersCorner = () => {
               {error && <p className="text-destructive text-sm mb-4">Error: {error.message}</p>}
 
               <div className="flex space-x-4">
-                <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                  {loading ? 'Saving...' : (isEditing ? 'Update Story' : 'Publish Story')}
+                <Button type="submit" disabled={isFetchingBlogs} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                  {isFetchingBlogs ? 'Saving...' : (isEditing ? 'Update Story' : 'Publish Story')}
                 </Button>
-                <Button type="button" onClick={() => handleSubmit(false)} disabled={loading} variant="outline" className="border-border text-foreground hover:bg-accent hover:text-accent-foreground">
+                <Button type="button" onClick={() => handleSubmit(false)} disabled={isFetchingBlogs} variant="outline" className="border-border text-foreground hover:bg-accent hover:text-accent-foreground">
                   Save as Draft
                 </Button>
                 <Button type="button" onClick={() => { setIsCreating(false); setIsEditing(false); setNewImageLink(''); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true }); }} variant="ghost">
@@ -369,9 +383,9 @@ const WritersCorner = () => {
           <h2 className="text-2xl font-bold text-foreground mb-8">
             My Stories
           </h2>
-          {loading && <p className="text-center text-muted-foreground">Loading your stories...</p>}
+          {isFetchingBlogs && <p className="text-center text-muted-foreground">Loading your stories...</p>}
           {error && <p className="text-center text-destructive">Error loading stories.</p>}
-          {!loading && !myBlogs.length && <p className="text-center text-muted-foreground">You haven't written any stories yet. Start by creating a new one!</p>}
+          {!isFetchingBlogs && !myBlogs.length && <p className="text-center text-muted-foreground">You haven't written any stories yet. Start by creating a new one!</p>}
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {myBlogs.map((blog) => (

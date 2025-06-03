@@ -1,8 +1,14 @@
-
 // API Configuration for MongoDB Atlas integration
 // This will contain all API calls and configurations
 
-const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:5000/api';
+// Ensure the backend URL ends with a single slash
+const cleanBackendUrl = (url: string): string => {
+  // Remove any trailing slashes and whitespace
+  const cleanUrl = url.trim().replace(/\/+$/, '');
+  return cleanUrl + '/';
+};
+
+const API_BASE_URL = cleanBackendUrl(import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000') + 'api';
 
 // Dummy credentials - replace with actual values
 const MONGODB_CONFIG = {
@@ -20,34 +26,53 @@ const MONGODB_CONFIG = {
 class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = API_BASE_URL) {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl: string = '') {
+    this.baseUrl = baseUrl || API_BASE_URL;
+    console.log('API Base URL:', this.baseUrl);
   }
 
   // Generic request method
-  private async request<T>(
+  public async request<T = any>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    // Ensure endpoint starts with a slash
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${this.baseUrl}${normalizedEndpoint}`;
+    
+    console.log(`[API] ${options.method || 'GET'} ${url}`);
+    
+    const token = localStorage.getItem('token'); // Get token from localStorage
+    // console.log('[API] Token being sent:', token); // Removed debugging log
+
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }), // Add token if available
         ...options.headers,
       },
       ...options,
     };
 
+    // console.log('[API] Request config headers:', config.headers); // Removed debugging log
+
     try {
       const response = await fetch(url, config);
+      const responseData = await response.json().catch(() => ({}));
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorMessage = responseData.message || `HTTP error! status: ${response.status}`;
+        console.error(`[API Error] ${response.status} ${response.statusText}:`, errorMessage);
+        throw new Error(errorMessage);
       }
       
-      return await response.json();
+      return responseData;
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error('[API Request Failed]', {
+        url,
+        method: options.method || 'GET',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       throw error;
     }
   }
@@ -69,7 +94,13 @@ class ApiService {
 
   // Blog methods
   async getBlogs(page: number = 1, limit: number = 10) {
-    return this.request<{ blogs: any[]; total: number; page: number }>(`/blogs?page=${page}&limit=${limit}`);
+    const response = await this.request<any>(`/blogs?page=${page}&limit=${limit}`);
+    return Array.isArray(response.blogs) ? response.blogs : [];
+  }
+
+  async getAllBlogs() {
+    const response = await this.request<any>('/blogs');
+    return Array.isArray(response.blogs) ? response.blogs : [];
   }
 
   async getBlogById(id: string) {
@@ -77,52 +108,54 @@ class ApiService {
   }
 
   async createBlog(blogData: any) {
-    const token = localStorage.getItem('authToken');
     return this.request<{ blog: any }>('/blogs', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify(blogData),
     });
   }
 
   async updateBlog(id: string, blogData: any) {
-    const token = localStorage.getItem('authToken');
-    return this.request<{ blog: any }>(`/blogs/${id}`, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(blogData),
+    return this.request<{ blog: any }>(`/blogs/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(blogData),
+      }
+    );
+  }
+
+  async likeBlog(id: string) {
+    return this.request<{ likes: number }>(`/blogs/${id}/like`, {
+      method: 'POST',
     });
   }
 
   async deleteBlog(id: string) {
-    const token = localStorage.getItem('authToken');
     return this.request<{ message: string }>(`/blogs/${id}`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
   }
 
   // Media upload
   async uploadMedia(file: File) {
-    const token = localStorage.getItem('authToken');
     const formData = new FormData();
     formData.append('file', file);
+
+    const token = localStorage.getItem('token'); // Retrieve token for media upload
 
     return fetch(`${this.baseUrl}/upload`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...(token && { Authorization: `Bearer ${token}` }), // Add token if available
       },
       body: formData,
     }).then(response => response.json());
   }
 }
 
-export const apiService = new ApiService();
-export { MONGODB_CONFIG };
+// Create a single instance of the API service
+const apiService = new ApiService();
+
+// Export the instance and config
+export { apiService, MONGODB_CONFIG };
+
+export default apiService;

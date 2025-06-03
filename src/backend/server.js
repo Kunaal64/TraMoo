@@ -1,3 +1,4 @@
+console.log('Server.js file loaded at:', new Date().toISOString());
 // Backend Server Configuration for MongoDB Atlas
 // This is a Node.js/Express server template
 
@@ -41,15 +42,18 @@ const protect = (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
+      console.log('Backend: Received token for protection:', token);
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded.id;
+      console.log('Backend: Decoded user ID from token:', req.user);
       next();
     } catch (error) {
-      console.error('Token verification failed:', error);
+      console.error('Backend: Token verification failed:', error);
       return res.status(401).json({ message: 'Not authorized, token failed' });
     }
   }
   if (!token) {
+    console.log('Backend: No token provided for protected route');
     return res.status(401).json({ message: 'Not authorized, no token' });
   }
 };
@@ -60,6 +64,10 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, '../../public')));
 app.use(morgan('dev'));
+app.use((req, res, next) => {
+  console.log(`Backend: Incoming request: ${req.method} ${req.originalUrl}`);
+  next();
+});
 app.use(helmet());
 app.use(compression());
 
@@ -72,7 +80,7 @@ if (!fs.existsSync(uploadsDir)) {
 // Apply rate limiting to all requests
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // Increased limit for development
   message: 'Too many requests from this IP, please try again after 15 minutes'
 });
 app.use(limiter);
@@ -317,150 +325,200 @@ app.get('/api/user-stats', async (req, res) => {
 // Blog Routes
 app.get('/api/blogs', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query._limit || req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    const query = {};
-    if (req.query.author) {
-      query.author = req.query.author;
+    const { tag, search, page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    let query = {};
+    if (tag) {
+      query.tags = tag;
     }
-    if (req.query.featured) {
-      query.featured = req.query.featured === 'true';
+    if (search) {
+      query.title = { $regex: search, $options: 'i' };
     }
 
-    const [blogs, total] = await Promise.all([
-      Blog.find(query).populate('author', 'name email').sort({ createdAt: -1 }).skip(skip).limit(limit),
-      Blog.countDocuments(query)
-    ]);
+    const blogs = await Blog.find(query)
+      .populate('author', 'name avatar')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
 
-    res.json({ blogs, total, page, totalPages: Math.ceil(total / limit) });
+    const totalBlogs = await Blog.countDocuments(query);
+
+    res.json({ blogs, total: totalBlogs, page: parseInt(page), limit: parseInt(limit) });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-app.get('/api/blogs/liked', async (req, res) => {
+app.get('/api/blogs/liked', protect, async (req, res) => {
   try {
-    const userId = req.user;
-    if (!userId) return res.status(401).json({ message: 'Unauthorized: Please log in to view liked blogs.' });
-
-    const likedBlogs = await Blog.find({ likes: userId }).populate('author', 'name email avatar').sort({ createdAt: -1 });
+    const likedBlogs = await Blog.find({ likes: req.user }).populate('author', 'name avatar');
     res.json({ blogs: likedBlogs });
   } catch (error) {
-    console.error('Error fetching liked blogs:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.get('/api/blogs/my-stories', protect, async (req, res) => {
+  console.log('Backend: Entering /api/blogs/my-stories route.');
+  console.log('Backend: User ID for my-stories route:', req.user);
+
+  if (!req.user) {
+    console.error('Backend: Error: User ID is undefined for /api/blogs/my-stories. This should not happen with protect middleware.');
+    return res.status(400).json({ message: 'User not authenticated or ID missing.' });
+  }
+
+  try {
+    const myBlogs = await Blog.find({ author: req.user }).populate('author', 'name avatar').sort({ createdAt: -1 });
+    console.log(`Backend: Found ${myBlogs.length} blogs for user ${req.user}`);
+    res.json({ blogs: myBlogs });
+  } catch (error) {
+    console.error('Backend: Error fetching my blogs (inside catch):', error.message);
+    console.error('Backend: Error stack (inside catch):', error.stack);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 app.get('/api/blogs/:id', async (req, res) => {
   try {
-    const blog = await Blog.findById(req.params.id).populate('author', 'name email avatar').populate('likes', 'name').populate({ path: 'comments.author', select: 'name avatar' });
+    const blog = await Blog.findById(req.params.id).populate('author', 'name avatar');
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
-
-    await Blog.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }, { new: true, runValidators: false });
-    
-    res.json({ blog });
+    blog.views += 1; // Increment view count
+    await blog.save();
+    res.json(blog);
   } catch (error) {
-    console.error('Error in GET /api/blogs/:id:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-app.post('/api/blogs', async (req, res) => {
+app.post('/api/blogs', protect, upload.array('images', 5), [
+  body('title').notEmpty().withMessage('Title is required'),
+  body('content').notEmpty().withMessage('Content is required'),
+  body('excerpt').notEmpty().withMessage('Excerpt is required'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    req.files.forEach(file => fs.unlinkSync(file.path)); // Delete uploaded files on validation error
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
-    const authorId = req.user;
-    if (!authorId) return res.status(401).json({ message: 'Unauthorized' });
-
-    const { title, subtitle, content, excerpt, tags, images, location, featured, published, readTime } = req.body;
-
-    console.log('Received images array:', images);
+    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime } = req.body;
+    const images = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
 
     const blog = new Blog({
       title,
       subtitle,
       content,
       excerpt,
-      author: authorId,
-      tags: tags || [],
-      images: images || [],
-      location,
-      featured: featured || false,
-      published: published !== undefined ? published : true,
-      readTime: readTime || 5,
-      updatedAt: new Date()
+      author: req.user,
+      tags: tags ? JSON.parse(tags) : [],
+      images,
+      location: locationName ? { name: locationName, coordinates: { lat: locationLat, lng: locationLng } } : undefined,
+      featured: featured === 'true',
+      published: published === 'true',
+      readTime: parseInt(readTime) || 5,
     });
+
     await blog.save();
-    await User.findByIdAndUpdate(authorId, { $inc: { storiesWritten: 1 } });
-    const populatedBlog = await Blog.findById(blog._id).populate('author', 'name email');
-    res.status(201).json({ message: 'Blog created successfully', blog: populatedBlog });
+
+    // Update user's storiesWritten count
+    await User.findByIdAndUpdate(req.user, { $inc: { storiesWritten: 1 } });
+
+    res.status(201).json(blog);
   } catch (error) {
+    req.files.forEach(file => fs.unlinkSync(file.path)); // Delete uploaded files on server error
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-app.put('/api/blogs/:id', async (req, res) => {
-  try {
-    const authorId = req.user;
-    if (!authorId) return res.status(401).json({ message: 'Unauthorized' });
-
-    const { id } = req.params;
-    const updates = req.body;
-
-    const blog = await Blog.findOneAndUpdate(
-      { _id: id, author: authorId },
-      { $set: { ...updates, updatedAt: new Date() } },
-      { new: true, runValidators: true }
-    ).populate('author', 'name email');
-
-    if (!blog) {
-      return res.status(404).json({ message: 'Blog not found or you are not the author' });
-    }
-
-    res.json({ message: 'Blog updated successfully', blog });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+app.put('/api/blogs/:id', protect, upload.array('images', 5), [
+  body('title').notEmpty().withMessage('Title is required'),
+  body('content').notEmpty().withMessage('Content is required'),
+  body('excerpt').notEmpty().withMessage('Excerpt is required'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    if (req.files) req.files.forEach(file => fs.unlinkSync(file.path));
+    return res.status(400).json({ errors: errors.array() });
   }
-});
 
-app.delete('/api/blogs/:id', async (req, res) => {
   try {
-    const authorId = req.user;
-    if (!authorId) return res.status(401).json({ message: 'Unauthorized' });
+    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime, existingImages } = req.body;
+    const newImages = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+    const updatedImages = existingImages ? (Array.isArray(existingImages) ? existingImages : JSON.parse(existingImages)).concat(newImages) : newImages;
 
-    const { id } = req.params;
-
-    const blog = await Blog.findOneAndDelete({ _id: id, author: authorId });
-
-    if (!blog) {
-      return res.status(404).json({ message: 'Blog not found or you are not the author' });
-    }
-
-    await User.findByIdAndUpdate(authorId, { $inc: { storiesWritten: -1 } });
-
-    res.json({ message: 'Blog deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-app.post('/api/blogs/:id/like', async (req, res) => {
-  try {
-    const userId = req.user;
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
-
-    const { id } = req.params;
-
-    const blog = await Blog.findById(id);
+    const blog = await Blog.findById(req.params.id);
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
 
-    const index = blog.likes.indexOf(userId);
-    if (index === -1) {
-      blog.likes.push(userId);
-    } else {
-      blog.likes.splice(index, 1);
+    if (blog.author.toString() !== req.user) {
+      if (req.files) req.files.forEach(file => fs.unlinkSync(file.path));
+      return res.status(403).json({ message: 'Not authorized to update this blog' });
     }
-    await blog.save();
 
+    blog.title = title;
+    blog.subtitle = subtitle;
+    blog.content = content;
+    blog.excerpt = excerpt;
+    blog.tags = tags ? JSON.parse(tags) : [];
+    blog.images = updatedImages;
+    blog.location = locationName ? { name: locationName, coordinates: { lat: locationLat, lng: locationLng } } : undefined;
+    blog.featured = featured === 'true';
+    blog.published = published === 'true';
+    blog.readTime = parseInt(readTime) || 5;
+    blog.updatedAt = new Date();
+
+    await blog.save();
+    res.json(blog);
+  } catch (error) {
+    if (req.files) req.files.forEach(file => fs.unlinkSync(file.path));
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.delete('/api/blogs/:id', protect, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.id);
+    if (!blog) return res.status(404).json({ message: 'Blog not found' });
+
+    if (blog.author.toString() !== req.user) {
+      return res.status(403).json({ message: 'Not authorized to delete this blog' });
+    }
+
+    // Delete associated images
+    blog.images.forEach(imagePath => {
+      const filePath = path.join(__dirname, imagePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    });
+
+    await blog.deleteOne();
+
+    // Update user's storiesWritten count
+    await User.findByIdAndUpdate(req.user, { $inc: { storiesWritten: -1 } });
+
+    res.json({ message: 'Blog removed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/blogs/:id/like', protect, async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.id);
+    if (!blog) return res.status(404).json({ message: 'Blog not found' });
+
+    const userId = req.user;
+    const isLiked = blog.likes.includes(userId);
+
+    if (isLiked) {
+      blog.likes = blog.likes.filter(id => id.toString() !== userId);
+    } else {
+      blog.likes.push(userId);
+    }
+
+    await blog.save();
     res.json({ message: 'Like status updated', likes: blog.likes });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -501,8 +559,11 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
 app.get('/api/health', (req, res) => res.json({ message: 'Server is running', timestamp: new Date().toISOString() }));
 
+// Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Backend: Global Error Handler - Caught an error!');
+  console.error('Backend: Global Error Handler - Stack:', err.stack);
+  console.error('Backend: Global Error Handler - Message:', err.message);
   res.status(500).json({ message: 'Server error', error: err.message });
 });
 

@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { GoogleLogin, useGoogleLogin } from '@react-oauth/google';
-import axios from 'axios';
+import { apiService } from '@/utils/api';
 import { TOAST_REMOVE_DELAY } from '@/hooks/use-toast';
 
 const Login = () => {
@@ -24,40 +24,50 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.email || !formData.password) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          isLogin
-            ? { email: formData.email, password: formData.password }
-            : formData
-        ),
-      });
+      const credentials = isLogin
+        ? { email: formData.email, password: formData.password }
+        : formData;
+      
+      const response = await apiService.request<{ user: any; token: string }>(
+        isLogin ? '/auth/login' : '/auth/register',
+        {
+          method: 'POST',
+          body: JSON.stringify(credentials),
+        }
+      );
 
-      const data = await response.json();
-
-      if (response.ok) {
-        await authLogin(formData.email, formData.password);
+      if (response.user && response.token) {
+        await authLogin(credentials.email, credentials.password);
         toast({
           title: isLogin ? 'Login successful!' : 'Account created successfully!',
-          description: `Welcome ${data.user.name}!`,
+          description: `Welcome ${response.user.name || response.user.email}!`,
           variant: 'success',
           icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
         });
-        setTimeout(() => {
-          navigate(from, { replace: true });
-        }, TOAST_REMOVE_DELAY + 500);
+        
+        navigate(from, { replace: true });
       } else {
-        toast({ title: 'Error', description: data.message, variant: 'destructive' });
+        throw new Error('Authentication failed: Invalid response from server');
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Authentication error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Something went wrong. Please try again.';
       toast({
         title: 'Error',
-        description: 'Something went wrong. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -69,73 +79,112 @@ const Login = () => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
+  interface GoogleAuthResponse {
+    token: string;
+    user: {
+      email: string;
+      name?: string;
+      id: string;
+    };
+    status?: number;
+  }
+
+  const handleGoogleSuccess = async (credentialResponse: { code?: string }) => {
+    if (!credentialResponse.code) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Failed to get authorization code from Google.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setIsLoading(true);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/auth/google`, {
-        code: credentialResponse.code,
+      const response = await apiService.request<GoogleAuthResponse>('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: credentialResponse.code,
+        }),
       });
 
-      const data = response.data;
+      if (response.token && response.user) {
+        // Store the token and user data in session storage
+        sessionStorage.setItem('token', response.token);
+        sessionStorage.setItem('user', JSON.stringify(response.user));
 
-      if (response.status === 200) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        toast({
-          title: 'Login successful!',
-          description: `Welcome back ${data.user.name || data.user.email}!`,
-          variant: 'success',
-          icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
-        });
-
-        setTimeout(() => {
-          navigate(from, { replace: true });
-        }, TOAST_REMOVE_DELAY + 500);
-      } else if (response.status === 201) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        toast({
-          title: 'Welcome!',
-          description: `Welcome ${data.user.name}!`,
-          variant: 'success',
-          icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
-        });
-        setTimeout(() => {
-          navigate('/profile/setup');
-        }, TOAST_REMOVE_DELAY + 500);
-      }
-    } catch (error: any) {
-      const errorData = error.response?.data;
-
-      if (error.response?.status === 409) {
-        if (errorData.code === 'EMAIL_ALREADY_EXISTS_NON_GOOGLE') {
-          toast({
-            title: 'Account Exists',
-            description: 'An account with this email already exists. Please sign in using your password, or link your Google account in your profile settings.',
-            variant: 'destructive',
-            action: (
-              <Button
-                variant="outline"
-                onClick={() => setIsLogin(true)}
-                className="ml-2"
-              >
-                Go to Login
-              </Button>
-            )
-          });
-        } else {
-          toast({
-            title: 'Account Exists',
-            description: errorData?.message || 'An account with this email already exists.',
-            variant: 'destructive',
-          });
+        // Update auth context with token
+        if (authLogin) {
+          await authLogin(response.user.email, response.token);
         }
+
+        const isNewUser = response.status === 201;
+        
+        toast({
+          title: isNewUser ? 'Welcome!' : 'Login successful!',
+          description: isNewUser 
+            ? `Welcome ${response.user.name || response.user.email}!`
+            : `Welcome back ${response.user.name || response.user.email}!`,
+          variant: 'success',
+          icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
+        });
+
+        navigate(isNewUser ? '/onboarding' : from, { replace: true });
+      } else {
+        throw new Error('Authentication failed: Invalid response from server');
+      }
+    } catch (error: unknown) {
+      // Type guard to check if error has a response property
+      const hasResponse = (err: any): err is { response: { status: number; data?: any } } => {
+        return err && typeof err === 'object' && 'response' in err;
+      };
+
+      // Type guard to check if error is an Error object
+      const isError = (err: unknown): err is Error => {
+        return err instanceof Error;
+      };
+
+      let errorMessage = 'Something went wrong. Please try again.';
+      let errorTitle = 'Authentication Error';
+      let showLoginButton = false;
+
+      if (hasResponse(error)) {
+        const errorData = error.response?.data || {};
+        
+        if (error.response.status === 409) {
+          errorTitle = 'Account Exists';
+          
+          if (errorData.code === 'EMAIL_ALREADY_EXISTS_NON_GOOGLE') {
+            errorMessage = 'An account with this email already exists. Please sign in using your password, or link your Google account in your profile settings.';
+            showLoginButton = true;
+          } else {
+            errorMessage = errorData.message || 'An account with this email already exists.';
+          }
+        } else {
+          errorMessage = errorData.message || errorMessage;
+        }
+      } else if (isError(error)) {
+        errorMessage = error.message;
+      }
+
+      if (showLoginButton) {
+        toast({
+          title: errorTitle,
+          description: errorMessage,
+          variant: 'destructive',
+          action: (
+            <Button
+              variant="outline"
+              onClick={() => setIsLogin(true)}
+              className="ml-2"
+            >
+              Go to Login
+            </Button>
+          )
+        });
       } else {
         toast({
-          title: 'Authentication Error',
-          description: errorData?.message || 'Something went wrong. Please try again.',
+          title: errorTitle,
+          description: errorMessage,
           variant: 'destructive'
         });
       }
@@ -144,10 +193,19 @@ const Login = () => {
     }
   };
 
-  const handleGoogleError = () => {
+  const handleGoogleError = (errorResponse: any) => {
+    console.error('Google login error:', errorResponse);
+    let errorMessage = 'Could not log in with Google. Please try again.';
+    
+    if (errorResponse.error === 'popup_closed_by_user') {
+      errorMessage = 'Google sign in was canceled.';
+    } else if (errorResponse.error) {
+      errorMessage = `Google sign in error: ${errorResponse.error}`;
+    }
+    
     toast({
       title: 'Google Login Failed',
-      description: 'Could not log in with Google. Please try again.',
+      description: errorMessage,
       variant: 'destructive',
     });
   };

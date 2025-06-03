@@ -8,6 +8,7 @@ import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { apiService } from '../utils/api';
 
 const Blogs = () => {
   const { toast } = useToast();
@@ -18,13 +19,20 @@ const Blogs = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  interface BlogsResponse {
+    blogs: any[];
+    total: number;
+    page: number;
+  }
+
   useEffect(() => {
     const fetchAllBlogs = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/blogs`);
-        setAllBlogs(response.data.blogs || []);
+        const response = await apiService.getAllBlogs();
+        console.log('Blogs.tsx: API getAllBlogs response:', response);
+        setAllBlogs(response || []);
       } catch (err) {
         console.error('Error fetching blogs:', err);
         setError(err);
@@ -50,14 +58,10 @@ const Blogs = () => {
       return;
     }
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${blogId}/like`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await apiService.likeBlog(blogId);
       setAllBlogs(prevBlogs => 
         prevBlogs.map(blog => 
-          blog._id === blogId ? { ...blog, likes: response.data.likes } : blog
+          blog._id === blogId ? { ...blog, likes: response.likes } : blog
         )
       );
     } catch (err) {
@@ -69,7 +73,8 @@ const Blogs = () => {
     }
   };
 
-  const allTags = Array.from(new Set(allBlogs.flatMap(blog => blog.tags || [])));
+  console.log('Blogs.tsx: allBlogs before flatMap:', allBlogs);
+  const allTags = Array.from(new Set(Array.isArray(allBlogs) ? allBlogs.flatMap(blog => blog.tags || []) : []));
 
   const filteredBlogs = allBlogs; // No filtering needed once filter options are removed
 

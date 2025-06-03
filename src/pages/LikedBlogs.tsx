@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { apiService } from '../utils/api';
 
 const LikedBlogs = () => {
   const { toast } = useToast();
@@ -26,12 +27,8 @@ const LikedBlogs = () => {
       setLoading(true);
       try {
         // Assuming your backend has an endpoint to fetch liked blogs for the current user
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/blogs/liked`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setLikedBlogs(response.data.blogs || []);
+        const response = await apiService.request<{ blogs: any[] }>('/blogs/liked');
+        setLikedBlogs(response.blogs || []);
       } catch (err) {
         console.error('Error fetching liked blogs:', err);
         setError(err);
@@ -57,14 +54,10 @@ const LikedBlogs = () => {
       return;
     }
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${blogId}/like`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await apiService.likeBlog(blogId);
       setLikedBlogs(prevBlogs => 
         prevBlogs.map(blog => 
-          blog._id === blogId ? { ...blog, likes: response.data.likes } : blog
+          blog._id === blogId ? { ...blog, likes: response.likes } : blog
         ).filter(blog => Array.isArray(blog.likes) && user && blog.likes.includes(user.id)) // Filter out unliked blogs
       );
     } catch (err) {

@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
@@ -13,22 +13,34 @@ import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
 import Blogs from './pages/Blogs';
 import Login from './pages/Login';
-import WritersCorner from './pages/WritersCorner';
+import MyStories from './pages/MyStories';
 import BlogDetail from './pages/BlogDetail';
 import LikedBlogs from './pages/LikedBlogs';
 import NotFound from './pages/NotFound';
+import BlogDetails from './pages/BlogDetails';
 
 const queryClient = new QueryClient();
+
+// Component to scroll to top on route change
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
 
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <ThemeProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+      <TooltipProvider>
+        <ThemeProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
               <ScrollToTop />
               <Routes>
                 <Route path="/" element={<MainLayout />}>
@@ -42,17 +54,17 @@ const App = () => {
                   } />
                   <Route path="writers-corner" element={
                     <ProtectedRoute>
-                      <WritersCorner />
+                      <MyStories />
                     </ProtectedRoute>
                   } />
                   <Route path="*" element={<NotFound />} />
                 </Route>
                 <Route path="/login" element={<Login />} />
               </Routes>
-            </BrowserRouter>
-          </ThemeProvider>
-        </TooltipProvider>
-      </AuthProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </ThemeProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 };

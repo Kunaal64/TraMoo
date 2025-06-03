@@ -1,12 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-}
+import { User } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -23,21 +18,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('AuthContext: Initial useEffect triggered.');
     const token = localStorage.getItem('token');
+    console.log('AuthContext: Token from localStorage (initial):', token);
     if (token) {
       checkAuthStatus();
     } else {
       setLoading(false);
+      console.log('AuthContext: No token found, setting loading to false.');
     }
   }, []);
 
   const checkAuthStatus = async () => {
+    console.log('AuthContext: checkAuthStatus called.');
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         setUser(null);
+        console.log('AuthContext: checkAuthStatus - No token, setting user null.');
         return;
       }
 
@@ -46,11 +47,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       setUser(response.data.user);
+      console.log('AuthContext: checkAuthStatus - User set:', response.data.user);
     } catch (error) {
+      console.error('AuthContext: checkAuthStatus - Error:', error);
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       setUser(null);
+      navigate('/login');
+      console.log('AuthContext: checkAuthStatus - Error, cleared localStorage and redirected to login.');
     } finally {
       setLoading(false);
+      console.log('AuthContext: checkAuthStatus - Setting loading to false.');
     }
   };
 
@@ -63,7 +70,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { token, user } = response.data;
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
+      console.log('AuthContext: Login successful, user and token set in localStorage and state.');
     } catch (error) {
       throw error;
     }
@@ -79,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { token, user } = response.data;
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
     } catch (error) {
       throw error;
@@ -87,7 +97,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
+    navigate('/');
   };
 
   const updateUser = async (userData: Partial<User>) => {

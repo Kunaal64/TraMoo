@@ -5,6 +5,7 @@ import { Search, Menu, X, User, PenTool, BookOpen, Compass, Heart, LogOut } from
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './ThemeToggle';
 import SearchBar from './SearchBar';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,6 +14,7 @@ const Navbar = () => {
   const location = useLocation();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   // Check if user is logged in
   const isAuthenticated = localStorage.getItem('token') !== null;
@@ -26,10 +28,7 @@ const Navbar = () => {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    // Force a full page reload to reset all state
-    window.location.reload();
+    logout();
   };
 
   useEffect(() => {

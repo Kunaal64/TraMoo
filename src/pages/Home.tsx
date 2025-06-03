@@ -9,6 +9,7 @@ import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { apiService } from '../utils/api';
 
 const Home = () => {
   const { toast } = useToast();
@@ -24,15 +25,15 @@ const Home = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/blogs?_limit=3&_sort=createdAt&_order=desc`);
-        console.log('Featured Blogs Data:', response.data.blogs);
-        setFeaturedBlogs(response.data.blogs || []);
+        const response = await apiService.getBlogs(1, 3);
+        console.log('Featured Blogs Data:', response);
+        setFeaturedBlogs(response || []);
       } catch (err) {
         console.error('Error fetching featured blogs:', err);
         setError(err);
         toast({
           title: "Error",
-          description: "Failed to load featured blogs.",
+          description: "Failed to load featured blogs. Please try again later.",
           variant: "destructive",
         });
       } finally {
@@ -52,14 +53,10 @@ const Home = () => {
       return;
     }
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/blogs/${blogId}/like`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await apiService.likeBlog(blogId);
       setFeaturedBlogs(prevBlogs => 
         prevBlogs.map(blog => 
-          blog._id === blogId ? { ...blog, likes: response.data.likes } : blog
+          blog._id === blogId ? { ...blog, likes: response.likes } : blog
         )
       );
     } catch (err) {
@@ -196,14 +193,16 @@ const Home = () => {
           {!loading && !featuredBlogs.length && <p className="text-center text-muted-foreground">No featured stories found.</p>}
 
           {!loading && featuredBlogs.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-              {featuredBlogs.map((blog, index) => (
-                blog._id && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12 py-4">
+              {Array.from({ length: 3 }).map((_, index) => {
+                const blog = featuredBlogs[index];
+                return blog ? (
                   <motion.div
                     key={blog._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="w-full"
                   >
                     <BlogCard 
                       {...blog} 
@@ -212,8 +211,19 @@ const Home = () => {
                       onCardClick={() => navigate(`/blogs/${blog._id}`)}
                     />
                   </motion.div>
-                )
-              ))}
+                ) : (
+                  <motion.div
+                    key={`placeholder-${index}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="w-full flex items-center justify-center bg-card-foreground/10 text-muted-foreground rounded-lg h-full p-4 border border-dashed border-muted-foreground/30"
+                    style={{ minHeight: '300px' }}
+                  >
+                    <p>No Story Yet</p>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
           
