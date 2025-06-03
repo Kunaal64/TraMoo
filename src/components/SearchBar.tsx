@@ -1,32 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useSearch } from '../context/SearchContext';
 
 interface SearchBarProps {
-  onClose?: () => void;
   placeholder?: string;
-  onSearch?: (query: string) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
-  onClose,
   placeholder = "Search stories, destinations, authors...",
-  onSearch,
 }) => {
-  const [query, setQuery] = useState('');
+  const { searchQuery, setSearchQuery, submitSearch, resetSearch } = useSearch();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (onSearch) {
-      onSearch(query);
-    }
+    submitSearch();
   };
 
   const handleClear = () => {
-    setQuery('');
-    if (onSearch) {
-      onSearch('');
-    }
+    resetSearch();
   };
 
   return (
@@ -40,13 +32,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
         <input
           type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={placeholder}
-          className="w-full pl-12 pr-20 py-3 glass rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 font-medium"
+          className="w-full pl-12 pr-20 py-2 glass rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFD700] focus:ring-offset-2 focus:ring-offset-background text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 font-medium"
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-          {query && (
+          {searchQuery && (
             <button
               type="button"
               onClick={handleClear}

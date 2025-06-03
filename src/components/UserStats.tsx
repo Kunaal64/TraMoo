@@ -20,29 +20,15 @@ const UserStats = () => {
   useEffect(() => {
     const fetchUserStats = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/user-stats');
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user-stats`);
         if (response.ok) {
           const data = await response.json();
           setStats(data);
         } else {
           console.error('Server returned error:', response.status);
-          // Fallback to mock data
-          setStats({
-            countriesExplored: 47,
-            photosShared: 1234,
-            storiesWritten: 89,
-            communityMembers: 5678
-          });
         }
       } catch (error) {
         console.error('Error fetching user stats:', error);
-        // Fallback to mock data
-        setStats({
-          countriesExplored: 47,
-          photosShared: 1234,
-          storiesWritten: 89,
-          communityMembers: 5678
-        });
       }
     };
 

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
+import { SearchProvider } from './context/SearchContext';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -30,26 +31,28 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
-              <ScrollToTop />
-              <Routes>
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<Home />} />
-                  <Route path="blogs" element={<Blogs />} />
-                  <Route path="blogs/:id" element={<BlogDetail />} />
-                  <Route path="liked-blogs" element={
-                    <ProtectedRoute>
-                      <LikedBlogs />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="writers-corner" element={
-                    <ProtectedRoute>
-                      <MyStories />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-                <Route path="/login" element={<Login />} />
-              </Routes>
+              <SearchProvider>
+                <ScrollToTop />
+                <Routes>
+                  <Route path="/" element={<MainLayout />}>
+                    <Route index element={<Home />} />
+                    <Route path="blogs" element={<Blogs />} />
+                    <Route path="blogs/:id" element={<BlogDetail />} />
+                    <Route path="liked-blogs" element={
+                      <ProtectedRoute>
+                        <LikedBlogs />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="writers-corner" element={
+                      <ProtectedRoute>
+                        <MyStories />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+                  <Route path="/login" element={<Login />} />
+                </Routes>
+              </SearchProvider>
             </AuthProvider>
           </BrowserRouter>
         </ThemeProvider>

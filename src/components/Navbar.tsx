@@ -6,15 +6,16 @@ import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './ThemeToggle';
 import SearchBar from './SearchBar';
 import { useAuth } from '../context/AuthContext';
+import { useSearch } from '../context/SearchContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { isSearchOpen, setIsSearchOpen, setSearchQuery } = useSearch();
 
   // Check if user is logged in
   const isAuthenticated = localStorage.getItem('token') !== null;
@@ -38,12 +39,28 @@ const Navbar = () => {
 
     window.addEventListener('scroll', handleScroll);
 
+    // Close search when navigating to /blogs
+    if (location.pathname === '/blogs') {
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [location.pathname, setIsSearchOpen, setSearchQuery]);
 
   const navbarBgClass = theme === 'dark' ? 'bg-neutral-900/90 backdrop-blur-md' : 'bg-gray-200/90 backdrop-blur-md';
+
+  const handleSearchToggle = () => {
+    setIsSearchOpen(!isSearchOpen);
+    if (isSearchOpen) {
+      setSearchQuery('');
+    }
+  };
+
+  const showNavbarSearch = isSearchOpen && location.pathname !== '/blogs';
+  const showSearchIcon = location.pathname !== '/blogs';
 
   return (
     <>
@@ -95,14 +112,16 @@ const Navbar = () => {
 
             {/* Actions */}
             <div className="flex items-center space-x-4">
-              <motion.button
-                onClick={() => setShowSearch(!showSearch)}
-                className="p-2 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Search size={20} />
-              </motion.button>
+              {showSearchIcon && (
+                <motion.button
+                  onClick={handleSearchToggle}
+                  className="p-2 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Search size={20} />
+                </motion.button>
+              )}
               
               <ThemeToggle />
               
@@ -142,15 +161,15 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Search Bar */}
-          {showSearch && (
+          {/* Search Bar (conditional rendering) */}
+          {showNavbarSearch && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               className="pb-4"
             >
-              <SearchBar onClose={() => setShowSearch(false)} />
+              <SearchBar onClose={() => {setIsSearchOpen(false); setSearchQuery('');}} />
             </motion.div>
           )}
         </div>
@@ -201,7 +220,7 @@ const Navbar = () => {
                 <Link
                   to="/login"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center space-x-3 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all font-medium"
+                  className="flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
                   <User size={18} />
                   <span>Login</span>

@@ -21,24 +21,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('AuthContext: Initial useEffect triggered.');
     const token = localStorage.getItem('token');
-    console.log('AuthContext: Token from localStorage (initial):', token);
     if (token) {
       checkAuthStatus();
     } else {
       setLoading(false);
-      console.log('AuthContext: No token found, setting loading to false.');
     }
   }, []);
 
   const checkAuthStatus = async () => {
-    console.log('AuthContext: checkAuthStatus called.');
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         setUser(null);
-        console.log('AuthContext: checkAuthStatus - No token, setting user null.');
         return;
       }
 
@@ -47,17 +42,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       setUser(response.data.user);
-      console.log('AuthContext: checkAuthStatus - User set:', response.data.user);
     } catch (error) {
       console.error('AuthContext: checkAuthStatus - Error:', error);
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);
       navigate('/login');
-      console.log('AuthContext: checkAuthStatus - Error, cleared localStorage and redirected to login.');
     } finally {
       setLoading(false);
-      console.log('AuthContext: checkAuthStatus - Setting loading to false.');
     }
   };
 
@@ -72,7 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
-      console.log('AuthContext: Login successful, user and token set in localStorage and state.');
     } catch (error) {
       throw error;
     }

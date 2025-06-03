@@ -39,7 +39,6 @@ const BlogDetail = () => {
       setLoading(true);
       try {
         const response = await apiService.getBlogById(id);
-        console.log('BlogDetail.tsx: getBlogById response:', response);
         setBlog(response);
       } catch (err) {
         setError(err);
@@ -122,7 +121,7 @@ const BlogDetail = () => {
       );
       setBlog((prev) => ({
         ...prev,
-        comments: [...prev.comments, response.data.comment],
+        comments: [...prev.comments, response.comment],
       }));
       setCommentContent('');
     } catch (err) {
@@ -133,6 +132,44 @@ const BlogDetail = () => {
       });
     } finally {
       setIsCommenting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!user || !token) {
+      toast({
+        title: 'Authentication Required',
+        description: 'You need to be logged in to delete a comment.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!blog?._id) {
+      toast({
+        title: 'Error',
+        description: 'Blog ID is missing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await apiService.request(`/blogs/${blog._id}/comments/${commentId}`, { method: 'DELETE' });
+      setBlog((prev) => ({
+        ...prev,
+        comments: prev.comments.filter((comment) => comment._id !== commentId),
+      }));
+      toast({
+        title: 'Success',
+        description: 'Comment deleted successfully.',
+      });
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete comment.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -215,18 +252,20 @@ const BlogDetail = () => {
 
             <div className="space-y-6 mb-8">
               {blog.comments.map((comment, index) => (
-                <div key={index} className="bg-card p-4 rounded-lg flex gap-3 border border-border">
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium overflow-hidden">
+                <div key={index} className="bg-card p-4 rounded-lg flex gap-3 border border-border items-start">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-base font-medium overflow-hidden flex-shrink-0">
                     {comment.author?.avatar ? (
                       <img src={getFullImageUrl(comment.author.avatar)} alt="Avatar" className="w-full h-full object-cover rounded-full" />
                     ) : (
-                      comment.author?.name?.charAt(0) || 'U'
+                      comment.author?.name?.charAt(0)?.toUpperCase() || 'U'
                     )}
                   </div>
-                  <div>
-                    <p className="font-semibold text-foreground">{comment.author?.name || 'Anonymous'}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</p>
-                    <p className="text-foreground mt-1">{comment.content}</p>
+                  <div className="flex-grow">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-foreground text-md">{comment.author?.name || 'Anonymous User'}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <p className="text-foreground mt-1 text-sm">{comment.content}</p>
                   </div>
                 </div>
               ))}

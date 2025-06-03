@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Camera, PenTool, ArrowDownCircle } from 'lucide-react';
+import { ArrowRight, Camera, PenTool, ArrowDownCircle, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BlogCard from '../components/BlogCard';
 import UserStats from '../components/UserStats';
@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { apiService } from '../utils/api';
+import { useSearch } from '../context/SearchContext';
 
 const Home = () => {
   const { toast } = useToast();
@@ -19,18 +20,19 @@ const Home = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { searchQuery, triggerScrollOnEnter, setTriggerScrollOnEnter } = useSearch();
+
+  const searchResultsRef = useRef<HTMLDivElement>(null); // Ref for the search results section
 
   useEffect(() => {
     const fetchFeaturedBlogs = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await apiService.getBlogs(1, 3);
-        console.log('Featured Blogs Data:', response);
+        const response = await apiService.getAllBlogs(searchQuery);
         setFeaturedBlogs(response || []);
       } catch (err) {
         console.error('Error fetching featured blogs:', err);
-        setError(err);
         toast({
           title: "Error",
           description: "Failed to load featured blogs. Please try again later.",
@@ -41,7 +43,22 @@ const Home = () => {
       }
     };
     fetchFeaturedBlogs();
-  }, []);
+  }, [searchQuery, toast]);
+
+  // Scroll to search results section when triggerScrollOnEnter is true
+  useEffect(() => {
+    if (triggerScrollOnEnter && searchResultsRef.current) {
+      setTimeout(() => {
+        const offsetTop = searchResultsRef.current?.offsetTop || 0;
+        window.scrollTo({
+          top: offsetTop,
+          behavior: 'smooth'
+        });
+        setTriggerScrollOnEnter(false); // Reset the trigger
+      }, 100); // Small delay to allow DOM to update and element position to be calculated
+    } else if (!triggerScrollOnEnter) {
+    }
+  }, [triggerScrollOnEnter, setTriggerScrollOnEnter]);
 
   const handleLikeToggle = async (blogId: string) => {
     if (!user || !token) {
@@ -69,7 +86,7 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       {/* Hero Section */}
       <section 
         className="relative min-h-screen-minus-navbar flex items-center justify-center"
@@ -173,7 +190,7 @@ const Home = () => {
       </section>
 
       {/* Featured Stories */}
-      <section className="py-16 bg-background dark:bg-background">
+      <section ref={searchResultsRef} className="py-16 bg-background dark:bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -182,69 +199,56 @@ const Home = () => {
             className="text-center mb-12"
           >
             <h2 className="text-3xl font-bold text-foreground mb-2">
-              Featured Stories
+              {searchQuery ? 'Search Results' : 'Featured Stories'}
             </h2>
             <p className="text-lg text-muted-foreground">
-              Discover inspiring travel stories from our community
+              {searchQuery 
+                ? `Showing results for "${searchQuery}"`
+                : 'Discover inspiring travel stories from our community'}
             </p>
           </motion.div>
-          {loading && <p className="text-center text-muted-foreground">Loading featured stories...</p>}
-          {error && <p className="text-center text-destructive">Error loading featured stories.</p>}
-          {!loading && !featuredBlogs.length && <p className="text-center text-muted-foreground">No featured stories found.</p>}
+          {loading && <p className="text-center text-muted-foreground">Loading stories...</p>}
+          {error && <p className="text-center text-destructive">Error loading stories.</p>}
+          {!loading && !featuredBlogs.length && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-16"
+            >
+              <div className="w-24 h-24 bg-muted text-muted-foreground rounded-full flex items-center justify-center mx-auto mb-6">
+                <Search className="w-12 h-12" />
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                No stories found
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Try adjusting your search terms.
+              </p>
+            </motion.div>
+          )}
 
           {!loading && featuredBlogs.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12 py-4">
-              {Array.from({ length: 3 }).map((_, index) => {
-                const blog = featuredBlogs[index];
-                return blog ? (
+              {featuredBlogs.map((blog, index) => (
+                blog._id && (
                   <motion.div
                     key={blog._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
-                    className="w-full"
                   >
-                    <BlogCard 
-                      {...blog} 
-                      isLiked={user ? (Array.isArray(blog.likes) && blog.likes.includes(user.id)) : false} 
-                      onLikeToggle={handleLikeToggle}
-                      onCardClick={() => navigate(`/blogs/${blog._id}`)}
-                    />
+                    <Link to={`/blogs/${blog._id}`}>
+                      <BlogCard 
+                        {...blog} 
+                        isLiked={user ? blog.likes.includes(user.id) : false} 
+                        onLikeToggle={handleLikeToggle} 
+                      />
+                    </Link>
                   </motion.div>
-                ) : (
-                  <motion.div
-                    key={`placeholder-${index}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    className="w-full flex items-center justify-center bg-card-foreground/10 text-muted-foreground rounded-lg h-full p-4 border border-dashed border-muted-foreground/30"
-                    style={{ minHeight: '300px' }}
-                  >
-                    <p>No Story Yet</p>
-                  </motion.div>
-                );
-              })}
+                )
+              ))}
             </div>
           )}
-          
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1.2 }}
-            className="text-center"
-          >
-            <Button
-              asChild
-              variant="outline"
-              className="border-border text-foreground hover:bg-accent hover:text-accent-foreground"
-            >
-              <Link to="/blogs">
-                View All Stories
-                <ArrowRight className="ml-2 h-4 w-4 text-foreground" />
-              </Link>
-            </Button>
-          </motion.div>
         </div>
       </section>
 

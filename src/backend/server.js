@@ -42,18 +42,14 @@ const protect = (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      console.log('Backend: Received token for protection:', token);
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded.id;
-      console.log('Backend: Decoded user ID from token:', req.user);
       next();
     } catch (error) {
-      console.error('Backend: Token verification failed:', error);
       return res.status(401).json({ message: 'Not authorized, token failed' });
     }
   }
   if (!token) {
-    console.log('Backend: No token provided for protected route');
     return res.status(401).json({ message: 'Not authorized, no token' });
   }
 };
@@ -64,10 +60,6 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, '../../public')));
 app.use(morgan('dev'));
-app.use((req, res, next) => {
-  console.log(`Backend: Incoming request: ${req.method} ${req.originalUrl}`);
-  next();
-});
 app.use(helmet());
 app.use(compression());
 
@@ -92,8 +84,8 @@ mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('Connected to MongoDB Atlas'))
-.catch((error) => console.error('MongoDB connection error:', error));
+.then(() => {}) // Removed console.log
+.catch((error) => {}); // Removed console.error
 
 // File upload configuration
 const storage = multer.diskStorage({
@@ -227,12 +219,9 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/google', async (req, res) => {
   const { code } = req.body; // Expecting 'code' from frontend
 
-  console.log('Received Google auth code:', code);
-
   try {
     // Exchange the authorization code for tokens
     const { tokens } = await client.getToken(code);
-    console.log('Tokens received from Google:', tokens);
 
     const idToken = tokens.id_token;
 
@@ -292,7 +281,6 @@ app.post('/api/auth/google', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Google authentication error:', error);
     res.status(401).json({ message: 'Google authentication failed', error: error.message });
   }
 });
@@ -311,13 +299,24 @@ app.get('/api/auth/me', protect, async (req, res) => {
 // User Stats Route
 app.get('/api/user-stats', async (req, res) => {
   try {
-    const [totalUsers, totalBlogs, ] = await Promise.all([
+    const [totalUsers, totalBlogs, uniqueCountries, totalImages] = await Promise.all([
       User.countDocuments(),
       Blog.countDocuments(),
+      Blog.distinct('country'),
+      Blog.aggregate([
+        { $unwind: '$images' },
+        { $count: 'total' }
+      ]),
     ]);
 
-    const totalCountries = Math.floor(totalUsers * 2.5);
-    res.json({ countriesExplored: totalCountries, photosShared: 0, storiesWritten: totalBlogs, communityMembers: totalUsers });
+    const photosShared = totalImages.length > 0 ? totalImages[0].total : 0;
+
+    res.json({
+      countriesExplored: uniqueCountries.length,
+      photosShared: photosShared,
+      storiesWritten: totalBlogs,
+      communityMembers: totalUsers
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -354,7 +353,6 @@ app.get('/api/blogs', async (req, res) => {
 
     res.json({ blogs, total, page: parseInt(page) });
   } catch (error) {
-    console.error('Backend: Error fetching blogs:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -369,28 +367,26 @@ app.get('/api/blogs/liked', protect, async (req, res) => {
 });
 
 app.get('/api/blogs/my-stories', protect, async (req, res) => {
-  console.log('Backend: Entering /api/blogs/my-stories route.');
-  console.log('Backend: User ID for my-stories route:', req.user);
-
   if (!req.user) {
-    console.error('Backend: Error: User ID is undefined for /api/blogs/my-stories. This should not happen with protect middleware.');
     return res.status(400).json({ message: 'User not authenticated or ID missing.' });
   }
 
   try {
-    const myBlogs = await Blog.find({ author: req.user }).populate('author', 'name avatar').sort({ createdAt: -1 });
-    console.log(`Backend: Found ${myBlogs.length} blogs for user ${req.user}`);
+    const myBlogs = await Blog.find({ author: req.user })
+      .populate('author', 'name avatar')
+      .populate('comments.author', 'name avatar')
+      .sort({ createdAt: -1 });
     res.json({ blogs: myBlogs });
   } catch (error) {
-    console.error('Backend: Error fetching my blogs (inside catch):', error.message);
-    console.error('Backend: Error stack (inside catch):', error.stack);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 app.get('/api/blogs/:id', async (req, res) => {
   try {
-    const blog = await Blog.findById(req.params.id).populate('author', 'name avatar');
+    const blog = await Blog.findById(req.params.id)
+      .populate('author', 'name avatar')
+      .populate('comments.author', 'name avatar');
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
     blog.views += 1; // Increment view count
     await blog.save();
@@ -551,7 +547,7 @@ app.post('/api/blogs/:id/like', protect, async (req, res) => {
   }
 });
 
-app.post('/api/blogs/:id/comment', async (req, res) => {
+app.post('/api/blogs/:id/comment', protect, async (req, res) => {
   try {
     const userId = req.user;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
@@ -564,13 +560,29 @@ app.post('/api/blogs/:id/comment', async (req, res) => {
     const blog = await Blog.findById(id);
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
 
-    const comment = { author: userId, content };
+    const authorUser = await User.findById(userId).select('name avatar');
+    if (!authorUser) return res.status(404).json({ message: 'Comment author not found' });
+
+    const comment = {
+      author: userId,
+      content,
+      createdAt: new Date()
+    };
     blog.comments.push(comment);
     await blog.save();
 
-    const populatedComment = await Blog.findById(blog._id).populate({ path: 'comments.author', select: 'name avatar' });
+    const returnedComment = {
+      _id: blog.comments[blog.comments.length - 1]._id,
+      author: {
+        _id: authorUser._id,
+        name: authorUser.name,
+        avatar: authorUser.avatar
+      },
+      content,
+      createdAt: comment.createdAt
+    };
 
-    res.status(201).json({ message: 'Comment added', comment: populatedComment.comments[populatedComment.comments.length - 1] });
+    res.status(201).json({ message: 'Comment added', comment: returnedComment });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -578,8 +590,6 @@ app.post('/api/blogs/:id/comment', async (req, res) => {
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-  console.log('Uploaded file:', req.file.filename);
-  console.log('Generated URL:', `/uploads/${req.file.filename}`);
   res.json({ message: 'File uploaded successfully', url: `/uploads/${req.file.filename}`, filename: req.file.filename });
 });
 
@@ -587,12 +597,9 @@ app.get('/api/health', (req, res) => res.json({ message: 'Server is running', ti
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Backend: Global Error Handler - Caught an error!');
-  console.error('Backend: Global Error Handler - Stack:', err.stack);
-  console.error('Backend: Global Error Handler - Message:', err.message);
   res.status(500).json({ message: 'Server error', error: err.message });
 });
 
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+app.listen(PORT, () => {});
 
 module.exports = app;

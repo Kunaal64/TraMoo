@@ -28,7 +28,6 @@ class ApiService {
 
   constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl || API_BASE_URL;
-    console.log('API Base URL:', this.baseUrl);
   }
 
   // Generic request method
@@ -40,10 +39,7 @@ class ApiService {
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = `${this.baseUrl}${normalizedEndpoint}`;
     
-    console.log(`[API] ${options.method || 'GET'} ${url}`);
-    
     const token = localStorage.getItem('token'); // Get token from localStorage
-    // console.log('[API] Token being sent:', token); // Removed debugging log
 
     const config: RequestInit = {
       headers: {
@@ -53,8 +49,6 @@ class ApiService {
       },
       ...options,
     };
-
-    // console.log('[API] Request config headers:', config.headers); // Removed debugging log
 
     try {
       const response = await fetch(url, config);

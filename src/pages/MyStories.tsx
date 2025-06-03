@@ -13,8 +13,6 @@ import BlogCard from '../components/BlogCard';
 import { Link } from 'react-router-dom';
 import { apiService } from '../utils/api';
 
-console.log('WritersCorner.tsx: Forced test log - V2');
-
 interface WriterStats {
   storiesWritten: number;
   totalReads: number;
@@ -76,18 +74,14 @@ const WritersCorner = () => {
   }
 
   const fetchMyBlogs = async () => {
-    console.log('Frontend: Attempting to fetch my blogs...');
     if (!user || !token) {
-      console.log('Frontend: User or token not available, cannot fetch my blogs.', { user, token });
       return;
     }
     setIsFetchingBlogs(true);
     try {
       const response = await apiService.request<MyStoriesResponse>('/blogs/my-stories');
-      console.log('Frontend: Successfully fetched my blogs:', response.blogs);
       setMyBlogs(response.blogs || []);
     } catch (err) {
-      console.error('Frontend: Error fetching my blogs:', err);
       setError(err);
       toast({
         title: "Error",
@@ -100,11 +94,9 @@ const WritersCorner = () => {
   };
 
   useEffect(() => {
-    console.log('Frontend: useEffect in WritersCorner triggered.');
     if (!authLoading && user && token) {
       fetchMyBlogs();
     } else {
-      console.log('Frontend: Skipping fetchMyBlogs. AuthLoading:', authLoading, 'User:', user, 'Token:', token);
     }
   }, [user, token, authLoading]);
 
@@ -145,7 +137,6 @@ const WritersCorner = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setCurrentBlog({ ...currentBlog, [name]: value });
-    console.log('MyStories.tsx: currentBlog.content:', value);
   };
 
   const handleTagAdd = () => {
@@ -269,6 +260,36 @@ const WritersCorner = () => {
     }
   };
 
+  const handleDeleteComment = async (blogId, commentId) => {
+    if (!user || !token) {
+      toast({
+        title: 'Authentication Required',
+        description: 'You need to be logged in to delete a comment.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await apiService.request(`/blogs/${blogId}/comments/${commentId}`, { method: 'DELETE' });
+      setCurrentBlog((prev) => ({
+        ...prev,
+        comments: prev.comments.filter((comment) => comment._id !== commentId),
+      }));
+      toast({
+        title: 'Success',
+        description: 'Comment deleted successfully.',
+      });
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete comment.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -328,14 +349,14 @@ const WritersCorner = () => {
                       <button type="button" onClick={() => handleTagRemove(tag)} className="ml-1 text-destructive hover:text-destructive/80">x</button>
                     </span>
                   ))}
-            </div>
+                </div>
                 <div className="flex space-x-2">
                   <Input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTagAdd(); } }} placeholder="Add a tag" className="glass-input flex-grow" />
                   <Button type="button" onClick={handleTagAdd} className="bg-secondary hover:bg-secondary/80 text-secondary-foreground">
                     Add Tag
                   </Button>
-          </div>
-            </div>
+                </div>
+              </div>
               <div className="mb-6">
                 <Label htmlFor="imageLink" className="block text-foreground text-sm font-bold mb-2">Embed Image Link</Label>
                 <div className="flex space-x-2">
@@ -343,7 +364,7 @@ const WritersCorner = () => {
                   <Button type="button" onClick={handleImageLinkAdd} className="bg-secondary hover:bg-secondary/80 text-secondary-foreground">
                     Add Link
                   </Button>
-          </div>
+                </div>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   {currentBlog.images.map((image, index) => (
                     <div key={index} className="relative group">
@@ -351,10 +372,10 @@ const WritersCorner = () => {
                       <button type="button" onClick={() => handleImageRemove(image)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
                         <X size={14} />
                       </button>
-            </div>
+                    </div>
                   ))}
-          </div>
-            </div>
+                </div>
+              </div>
               
               {error && <p className="text-destructive text-sm mb-4">Error: {error.message}</p>}
 
@@ -368,9 +389,9 @@ const WritersCorner = () => {
                 <Button type="button" onClick={() => { setIsCreating(false); setIsEditing(false); setNewImageLink(''); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true, country: '' }); }} variant="ghost">
                   Cancel
                 </Button>
-          </div>
+              </div>
             </form>
-        </motion.div>
+          </motion.div>
         )}
 
         <motion.div
@@ -459,6 +480,43 @@ const WritersCorner = () => {
               </div>
             </div>
         </motion.div>
+        )}
+
+        {/* Comments Section */}
+        {isEditing && currentBlog.comments && currentBlog.comments.length > 0 && (
+          <div className="mt-8 border-t border-border pt-8">
+            <h4 className="text-2xl font-bold text-foreground mb-6">Comments ({currentBlog.comments.length})</h4>
+            <div className="space-y-6 mb-8">
+              {currentBlog.comments.map((comment, index) => (
+                <div key={index} className="bg-card p-4 rounded-lg flex gap-3 border border-border items-start">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-base font-medium overflow-hidden flex-shrink-0">
+                    {comment.author?.avatar ? (
+                      <img src={getFullImageUrl(comment.author.avatar)} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                      comment.author?.name?.charAt(0)?.toUpperCase() || 'U'
+                    )}
+                  </div>
+                  <div className="flex-grow">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-foreground text-md">{comment.author?.name || 'Anonymous User'}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <p className="text-foreground mt-1 text-sm">{comment.content}</p>
+                  </div>
+                  {(user && user.id === currentBlog.author._id) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteComment(currentBlog._id, comment._id)}
+                      className="text-destructive hover:bg-destructive/10 p-1 h-auto"
+                    >
+                      Delete
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
       </div>
