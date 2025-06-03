@@ -17,20 +17,9 @@ import MyStories from './pages/MyStories';
 import BlogDetail from './pages/BlogDetail';
 import LikedBlogs from './pages/LikedBlogs';
 import NotFound from './pages/NotFound';
-import BlogDetails from './pages/BlogDetails';
 
 const queryClient = new QueryClient();
 
-// Component to scroll to top on route change
-function ScrollToTop() {
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
-
-  return null;
-}
 
 const App = () => {
   return (

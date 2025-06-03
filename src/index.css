@@ -6,12 +6,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
 
 /* Font families */
+html {
+  scroll-behavior: auto !important;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   font-weight: 400;
   background-color: hsl(var(--background)); /* Ensure consistent background */
   @apply bg-background text-foreground;
   transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-y: scroll !important; /* Ensure vertical scrolling is always enabled */
 }
 
 h1, h2, h3, h4, h5, h6 {
