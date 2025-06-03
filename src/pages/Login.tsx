@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { GoogleLogin, useGoogleLogin } from '@react-oauth/google';
+import { GoogleLogin, CredentialResponse, useGoogleLogin, TokenResponse } from '@react-oauth/google';
 import { apiService } from '@/utils/api';
 import { TOAST_REMOVE_DELAY } from '@/hooks/use-toast';
 
@@ -18,9 +18,144 @@ const Login = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login: authLogin } = useAuth();
+  const { login: authLogin, googleLogin } = useAuth();
 
   const from = location.state?.from?.pathname || '/';
+
+  interface GoogleAuthResponse {
+    token: string;
+    user: {
+      email: string;
+      name?: string;
+      id: string;
+    };
+    status?: number;
+  }
+
+  const handleGoogleSuccess = async (codeResponse: Omit<TokenResponse, "error" | "error_description" | "error_uri">) => {
+    console.log('Google auth code response:', codeResponse);
+    
+    if (!codeResponse.code) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Failed to get authorization code from Google. Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Send the Google authorization code to our backend for verification
+      const response = await apiService.request<GoogleAuthResponse>('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: codeResponse.code,
+        })
+      });
+      
+      if (response.user && response.token) {
+        // Use the googleLogin function from AuthContext
+        googleLogin({ user: response.user, token: response.token });
+        
+        toast({
+          title: 'Success!',
+          description: 'Successfully signed in with Google',
+          variant: 'success',
+        });
+        
+        navigate(from, { replace: true });
+      } else {
+        throw new Error('Authentication failed: Invalid response from server');
+      }
+    } catch (error: unknown) {
+      console.error('Google authentication error:', error);
+      
+      // Type guard to check if error has a response property
+      const hasResponse = (err: any): err is { response: { status: number; data?: any } } => {
+        return err && typeof err === 'object' && 'response' in err;
+      };
+
+      // Type guard to check if error is an Error object
+      const isError = (err: unknown): err is Error => {
+        return err instanceof Error;
+      };
+
+      let errorMessage = 'Failed to sign in with Google. Please try again.';
+      let errorTitle = 'Authentication Error';
+      let showLoginButton = false;
+
+      if (hasResponse(error)) {
+        const errorData = error.response?.data || {};
+        
+        if (error.response.status === 409) {
+          errorTitle = 'Account Exists';
+          
+          if (errorData.code === 'EMAIL_ALREADY_EXISTS_NON_GOOGLE') {
+            errorMessage = 'An account with this email already exists. Please sign in using your password, or link your Google account in your profile settings.';
+            showLoginButton = true;
+          } else {
+            errorMessage = errorData.message || 'An account with this email already exists.';
+          }
+        } else {
+          errorMessage = errorData.message || errorMessage;
+        }
+      } else if (isError(error)) {
+        errorMessage = error.message;
+      }
+
+      if (showLoginButton) {
+        toast({
+          title: errorTitle,
+          description: errorMessage,
+          variant: 'destructive',
+          action: (
+            <Button
+              variant="outline"
+              onClick={() => setIsLogin(true)}
+              className="ml-2"
+            >
+              Go to Login
+            </Button>
+          )
+        });
+      } else {
+        toast({
+          title: errorTitle,
+          description: errorMessage,
+          variant: 'destructive'
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleError = (errorResponse: { error?: string; error_description?: string }) => {
+    console.error('Google login error:', errorResponse);
+    let errorMessage = 'Could not log in with Google. Please try again.';
+
+    if (errorResponse.error === 'popup_closed_by_user') {
+      errorMessage = 'Google login window was closed. Please try again.';
+    } else if (errorResponse.error === 'access_denied') {
+      errorMessage = 'Access denied by Google.';
+    } else if (errorResponse.error_description) {
+      errorMessage = errorResponse.error_description;
+    }
+
+    toast({
+      title: 'Google Login Failed',
+      description: errorMessage,
+      variant: 'destructive',
+    });
+  };
+
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: (errorResponse) => handleGoogleError(errorResponse as { error?: string; error_description?: string }),
+    flow: 'auth-code',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,143 +213,6 @@ const Login = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
-
-  interface GoogleAuthResponse {
-    token: string;
-    user: {
-      email: string;
-      name?: string;
-      id: string;
-    };
-    status?: number;
-  }
-
-  const handleGoogleSuccess = async (credentialResponse: { code?: string }) => {
-    if (!credentialResponse.code) {
-      toast({
-        title: 'Authentication Error',
-        description: 'Failed to get authorization code from Google.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const response = await apiService.request<GoogleAuthResponse>('/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({
-          code: credentialResponse.code,
-        }),
-      });
-
-      if (response.token && response.user) {
-        // Store the token and user data in session storage
-        sessionStorage.setItem('token', response.token);
-        sessionStorage.setItem('user', JSON.stringify(response.user));
-
-        // Update auth context with token
-        if (authLogin) {
-          await authLogin(response.user.email, response.token);
-        }
-
-        const isNewUser = response.status === 201;
-        
-        toast({
-          title: isNewUser ? 'Welcome!' : 'Login successful!',
-          description: isNewUser 
-            ? `Welcome ${response.user.name || response.user.email}!`
-            : `Welcome back ${response.user.name || response.user.email}!`,
-          variant: 'success',
-          icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
-        });
-
-        navigate(isNewUser ? '/onboarding' : from, { replace: true });
-      } else {
-        throw new Error('Authentication failed: Invalid response from server');
-      }
-    } catch (error: unknown) {
-      // Type guard to check if error has a response property
-      const hasResponse = (err: any): err is { response: { status: number; data?: any } } => {
-        return err && typeof err === 'object' && 'response' in err;
-      };
-
-      // Type guard to check if error is an Error object
-      const isError = (err: unknown): err is Error => {
-        return err instanceof Error;
-      };
-
-      let errorMessage = 'Something went wrong. Please try again.';
-      let errorTitle = 'Authentication Error';
-      let showLoginButton = false;
-
-      if (hasResponse(error)) {
-        const errorData = error.response?.data || {};
-        
-        if (error.response.status === 409) {
-          errorTitle = 'Account Exists';
-          
-          if (errorData.code === 'EMAIL_ALREADY_EXISTS_NON_GOOGLE') {
-            errorMessage = 'An account with this email already exists. Please sign in using your password, or link your Google account in your profile settings.';
-            showLoginButton = true;
-          } else {
-            errorMessage = errorData.message || 'An account with this email already exists.';
-          }
-        } else {
-          errorMessage = errorData.message || errorMessage;
-        }
-      } else if (isError(error)) {
-        errorMessage = error.message;
-      }
-
-      if (showLoginButton) {
-        toast({
-          title: errorTitle,
-          description: errorMessage,
-          variant: 'destructive',
-          action: (
-            <Button
-              variant="outline"
-              onClick={() => setIsLogin(true)}
-              className="ml-2"
-            >
-              Go to Login
-            </Button>
-          )
-        });
-      } else {
-        toast({
-          title: errorTitle,
-          description: errorMessage,
-          variant: 'destructive'
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleError = (errorResponse: any) => {
-    console.error('Google login error:', errorResponse);
-    let errorMessage = 'Could not log in with Google. Please try again.';
-    
-    if (errorResponse.error === 'popup_closed_by_user') {
-      errorMessage = 'Google sign in was canceled.';
-    } else if (errorResponse.error) {
-      errorMessage = `Google sign in error: ${errorResponse.error}`;
-    }
-    
-    toast({
-      title: 'Google Login Failed',
-      description: errorMessage,
-      variant: 'destructive',
-    });
-  };
-
-  const googleAuth = useGoogleLogin({
-    onSuccess: handleGoogleSuccess,
-    onError: handleGoogleError,
-    flow: 'auth-code',
-  });
 
   return (
     <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 radial-glow">
@@ -331,25 +329,23 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="flex justify-center mt-4">
-            <Button
-              onClick={() => { googleAuth(); setIsLoading(true); }}
-              disabled={isLoading}
-              className="flex items-center justify-center w-full py-3 px-6 border-2 border-slate-300 dark:border-slate-600 rounded-full shadow-lg text-base font-semibold transition-all duration-300
-                bg-white dark:bg-slate-800
-                text-slate-800 dark:text-white
-                hover:bg-slate-100 dark:hover:bg-slate-700
-                focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-slate-400 dark:focus:ring-slate-500
-                disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-              </svg>
-              Google
-            </Button>
+          <div className="text-center">
+            <div className="w-full flex justify-center">
+              <Button
+                type="button"
+                onClick={() => handleGoogleLogin()}
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 text-white dark:text-black hover:from-slate-800 hover:to-slate-600 dark:hover:from-slate-200 dark:hover:to-slate-400 transition-colors duration-200 rounded-xl py-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M22.675 12.001c0-.783-.069-1.54-.188-2.274H12v4.305h6.294c-.266 1.4-1.096 2.583-2.316 3.424v2.795h3.585c2.096-1.93 3.307-4.757 3.307-8.25z" fill="#4285F4"/>
+                  <path d="M12 24c3.243 0 5.962-1.072 7.949-2.915l-3.585-2.795c-.996.671-2.27 1.066-3.905 1.066-3.003 0-5.556-2.023-6.467-4.754H1.996v2.887C3.993 22.096 7.625 24 12 24z" fill="#34A853"/>
+                  <path d="M5.533 14.288c-.234-.672-.366-1.39-.366-2.095s.132-1.423.366-2.095V7.291H1.996c-.732 1.465-1.156 3.14-1.156 4.693s.424 3.228 1.156 4.693L5.533 14.288z" fill="#FBBC04"/>
+                  <path d="M12 4.73c1.761 0 3.342.607 4.587 1.776l3.18-3.18C17.962 1.072 15.243 0 12 0c-4.375 0-8.007 1.904-10.004 4.81L5.533 7.705c.911-2.731 3.464-4.754 6.467-4.754z" fill="#EA4335"/>
+                </svg>
+                Continue with Google
+              </Button>
+            </div>
           </div>
 
           <div className="text-center pt-2">

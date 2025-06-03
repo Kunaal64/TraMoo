@@ -1,4 +1,3 @@
-console.log('Server.js file loaded at:', new Date().toISOString());
 // Backend Server Configuration for MongoDB Atlas
 // This is a Node.js/Express server template
 
@@ -10,13 +9,13 @@ const multer = require('multer');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const morgan = require('morgan');
-const helmet = require('helmet');
 const compression = require('compression');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
+const helmet = require('helmet');
 
 // Load environment variables
 dotenv.config();
@@ -54,14 +53,44 @@ const protect = (req, res, next) => {
   }
 };
 
+// CORS Configuration
+const corsOptions = {
+  origin: [
+    'http://localhost:8080',
+    'http://localhost:3000',
+    'http://localhost:5000',
+    process.env.VITE_BACKEND_URL
+  ].filter(Boolean),
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, '../../public')));
-app.use(morgan('dev'));
-app.use(helmet());
+// app.use(morgan('dev')); // Removed this line to prevent general request logging
+// Re-enable helmet with specific configurations
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: "unsafe-none" },
+  frameguard: { action: 'SAMEORIGIN' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://accounts.google.com", "https://*.googleapis.com"],
+      frameSrc: ["'self'", "https://accounts.google.com"],
+      connectSrc: ["'self'", "https://accounts.google.com", "https://*.googleapis.com"],
+      imgSrc: ["'self'", "data:", "https://ssl.gstatic.com", "https://lh3.googleusercontent.com"],
+      styleSrc: ["'self'", "https://accounts.google.com"],
+    },
+  },
+}));
 app.use(compression());
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -84,8 +113,8 @@ mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => {}) // Removed console.log
-.catch((error) => {}); // Removed console.error
+.then(() => {})
+.catch((error) => { console.error('MongoDB connection error:', error); }); // Kept error log
 
 // File upload configuration
 const storage = multer.diskStorage({
@@ -179,11 +208,12 @@ app.post('/api/auth/register', [
 
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, salt);
-
+    
     const user = new User({ name, email, password: hashedPassword });
     await user.save();
 
     const token = generateToken(user._id);
+    console.log(`User registered: ${user.name}`); // Log for new user registration
     res.status(201).json({
       message: 'User created successfully',
       user: { id: user._id, name: user.name, email: user.email },
@@ -205,6 +235,7 @@ app.post('/api/auth/login', async (req, res) => {
     await user.save();
 
     const token = generateToken(user._id);
+    console.log(`User logged in: ${user.name}`); // Log for successful login
     res.json({
       message: 'Login successful',
       user: { id: user._id, name: user.name, email: user.email },
@@ -217,71 +248,66 @@ app.post('/api/auth/login', async (req, res) => {
 
 // Google OAuth Login Route
 app.post('/api/auth/google', async (req, res) => {
-  const { code } = req.body; // Expecting 'code' from frontend
-
+  const { code } = req.body; 
+  
   try {
-    // Exchange the authorization code for tokens
+    // Exchange the authorization code for tokens (including id_token)
     const { tokens } = await client.getToken(code);
-
-    const idToken = tokens.id_token;
-
-    // Verify the idToken
+    
     const ticket = await client.verifyIdToken({
-      idToken: idToken,
+      idToken: tokens.id_token, // Use the id_token from the tokens response
       audience: GOOGLE_CLIENT_ID,
     });
     const payload = ticket.getPayload();
-    const { sub: googleId, email, name, picture } = payload;
+    const { sub, email, name, picture } = payload;
 
     let user = await User.findOne({ email });
 
-    if (user) {
-      // User exists
-      if (user.isGoogleUser) {
-        // Existing Google user, just log them in
-        user.avatar = picture || user.avatar;
-        user.lastActive = new Date();
-        await user.save();
-      } else {
-        // User exists but is NOT a Google user (registered traditionally)
-        return res.status(409).json({
-          message: 'This email is already registered. Please log in using your password, or link your Google account in your profile settings.',
-          code: 'EMAIL_ALREADY_EXISTS_NON_GOOGLE'
-        });
-      }
-    } else {
-      // User does not exist, create new Google user
+    if (!user) {
+      // Create a new user if they don't exist
       user = new User({
-        name: name || email,
-        email,
-        password: 'google_oauth_user_no_password', // Placeholder, user can't login with this
-        avatar: picture || '',
+        name: name,
+        email: email,
+        password: sub, // Use sub as a placeholder password for Google users
+        avatar: picture,
         isGoogleUser: true,
       });
       await user.save();
-
-      const appToken = generateToken(user._id);
-
-      return res.status(201).json({
-        message: 'Google login successful',
-        user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
-        token: appToken,
-        code: 'NEW_GOOGLE_USER'
-      });
+      console.log(`New Google user logged in: ${user.name}`); // Log for new Google user
+    } else if (!user.isGoogleUser) {
+      // If a user with this email exists but isn't a Google user, prevent login
+      return res.status(400).json({ message: 'Email already registered with traditional login. Please use traditional login.' });
+    } else {
+      console.log(`Existing Google user logged in: ${user.name}`); // Log for existing Google user
     }
 
-    const appToken = generateToken(user._id);
+    user.lastActive = new Date();
+    await user.save();
 
-    // For existing Google users, send 200 OK
+    const token = generateToken(user._id);
     res.status(200).json({
       message: 'Google login successful',
       user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
-      token: appToken,
-      code: 'EXISTING_GOOGLE_USER'
+      token,
     });
 
   } catch (error) {
-    res.status(401).json({ message: 'Google authentication failed', error: error.message });
+    console.error('Google authentication error:', error);
+    res.status(500).json({ message: 'Google authentication failed', error: error.message });
+  }
+});
+
+app.get('/api/auth/logout', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user);
+    if (user) {
+      user.lastActive = new Date();
+      await user.save();
+      console.log(`User logged out: ${user.name}`); // Log for user logout
+    }
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
@@ -396,7 +422,7 @@ app.get('/api/blogs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/blogs', protect, upload.fields([{ name: 'images', maxCount: 10 }]), [
+app.post('/api/blogs', protect, [
   body('title').notEmpty().withMessage('Title is required'),
   body('content').notEmpty().withMessage('Content is required'),
   body('excerpt').notEmpty().withMessage('Excerpt is required'),
@@ -404,15 +430,11 @@ app.post('/api/blogs', protect, upload.fields([{ name: 'images', maxCount: 10 }]
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    if (req.files && req.files.images && Array.isArray(req.files.images)) {
-      req.files.images.forEach(file => fs.unlinkSync(file.path)); // Delete uploaded files on validation error
-    }
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime, country } = req.body;
-    const images = (req.files && Array.isArray(req.files.images)) ? req.files.images.map(file => `/uploads/${file.filename}`) : [];
+    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime, country, images } = req.body;
     const parsedTags = tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [];
 
     const blog = new Blog({
@@ -422,11 +444,11 @@ app.post('/api/blogs', protect, upload.fields([{ name: 'images', maxCount: 10 }]
       excerpt,
       author: req.user,
       tags: parsedTags,
-      images,
+      images: images || [],
       country,
       location: locationName ? { name: locationName, coordinates: { lat: locationLat, lng: locationLng } } : undefined,
-      featured: featured === 'true',
-      published: published === 'true',
+      featured: featured,
+      published: published,
       readTime: parseInt(readTime) || 5,
     });
 
@@ -434,17 +456,17 @@ app.post('/api/blogs', protect, upload.fields([{ name: 'images', maxCount: 10 }]
 
     // Update user's storiesWritten count
     await User.findByIdAndUpdate(req.user, { $inc: { storiesWritten: 1 } });
+    
+    const user = await User.findById(req.user);
+    console.log(`New blog created: "${blog.title}" by ${user ? user.name : 'Unknown User'}`); // Log for new blog creation
 
     res.status(201).json(blog);
   } catch (error) {
-    if (req.files && req.files.images && Array.isArray(req.files.images)) {
-      req.files.images.forEach(file => fs.unlinkSync(file.path)); // Delete uploaded files on server error
-    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-app.put('/api/blogs/:id', protect, upload.array('images', 5), [
+app.put('/api/blogs/:id', protect, [
   body('title').notEmpty().withMessage('Title is required'),
   body('content').notEmpty().withMessage('Content is required'),
   body('excerpt').notEmpty().withMessage('Excerpt is required'),
@@ -452,26 +474,17 @@ app.put('/api/blogs/:id', protect, upload.array('images', 5), [
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    if (req.files && Array.isArray(req.files)) {
-      req.files.forEach(file => fs.unlinkSync(file.path));
-    }
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime, existingImages, country } = req.body;
-    const newImages = Array.isArray(req.files) ? req.files.map(file => `/uploads/${file.filename}`) : [];
-    const parsedExistingImages = existingImages ? (Array.isArray(existingImages) ? existingImages : JSON.parse(existingImages)) : [];
-    const updatedImages = parsedExistingImages.concat(newImages);
+    const { title, subtitle, content, excerpt, tags, locationName, locationLat, locationLng, featured, published, readTime, images, country } = req.body;
     const parsedTags = tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [];
 
     const blog = await Blog.findById(req.params.id);
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
 
     if (blog.author.toString() !== req.user) {
-      if (req.files && Array.isArray(req.files)) {
-        req.files.forEach(file => fs.unlinkSync(file.path));
-      }
       return res.status(403).json({ message: 'Not authorized to update this blog' });
     }
 
@@ -480,20 +493,21 @@ app.put('/api/blogs/:id', protect, upload.array('images', 5), [
     blog.content = content;
     blog.excerpt = excerpt;
     blog.tags = parsedTags;
-    blog.images = updatedImages;
+    blog.images = images || [];
     blog.country = country;
     blog.location = locationName ? { name: locationName, coordinates: { lat: locationLat, lng: locationLng } } : undefined;
-    blog.featured = featured === 'true';
-    blog.published = published === 'true';
+    blog.featured = featured;
+    blog.published = published;
     blog.readTime = parseInt(readTime) || 5;
     blog.updatedAt = new Date();
 
     await blog.save();
+    
+    const user = await User.findById(req.user);
+    console.log(`Blog updated: "${blog.title}" by ${user ? user.name : 'Unknown User'}`); // Log for blog update
+
     res.json(blog);
   } catch (error) {
-    if (req.files && Array.isArray(req.files)) {
-      req.files.forEach(file => fs.unlinkSync(file.path));
-    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -519,6 +533,9 @@ app.delete('/api/blogs/:id', protect, async (req, res) => {
 
     // Update user's storiesWritten count
     await User.findByIdAndUpdate(req.user, { $inc: { storiesWritten: -1 } });
+    
+    const user = await User.findById(req.user);
+    console.log(`Blog deleted: "${blog.title}" by ${user ? user.name : 'Unknown User'}`); // Log for blog deletion
 
     res.json({ message: 'Blog removed' });
   } catch (error) {
@@ -533,11 +550,14 @@ app.post('/api/blogs/:id/like', protect, async (req, res) => {
 
     const userId = req.user;
     const isLiked = blog.likes.includes(userId);
+    const user = await User.findById(req.user); // Get user for logging
 
     if (isLiked) {
       blog.likes = blog.likes.filter(id => id.toString() !== userId);
+      console.log(`Blog unliked: "${blog.title}" by ${user ? user.name : 'Unknown User'}`); // Log for unliking
     } else {
       blog.likes.push(userId);
+      console.log(`Blog liked: "${blog.title}" by ${user ? user.name : 'Unknown User'}`); // Log for liking
     }
 
     await blog.save();
@@ -570,6 +590,8 @@ app.post('/api/blogs/:id/comment', protect, async (req, res) => {
     };
     blog.comments.push(comment);
     await blog.save();
+    
+    console.log(`Comment added to blog: "${blog.title}" by ${authorUser.name}`); // Log for comment added
 
     const returnedComment = {
       _id: blog.comments[blog.comments.length - 1]._id,
@@ -588,18 +610,21 @@ app.post('/api/blogs/:id/comment', protect, async (req, res) => {
   }
 });
 
-app.post('/api/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-  res.json({ message: 'File uploaded successfully', url: `/uploads/${req.file.filename}`, filename: req.file.filename });
-});
+// app.post('/api/upload', upload.single('file'), (req, res) => {
+//   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+//   res.json({ message: 'File uploaded successfully', url: `/uploads/${req.file.filename}`, filename: req.file.filename });
+// }); // Removed because it's not on the list of desired logs and can be noisy.
 
-app.get('/api/health', (req, res) => res.json({ message: 'Server is running', timestamp: new Date().toISOString() }));
+// app.get('/api/health', (req, res) => res.json({ message: 'Server is running', timestamp: new Date().toISOString() })); // Removed this as it's not on the list.
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  console.error('Unhandled server error:', err); // Kept for unhandled errors
   res.status(500).json({ message: 'Server error', error: err.message });
 });
 
-app.listen(PORT, () => {});
+app.listen(PORT, () => {
+    // console.log(`Server running on port ${PORT}`); // Removed this line
+});
 
 module.exports = app;

@@ -11,6 +11,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (userData: Partial<User>) => Promise<void>;
   token: string | null;
+  googleLogin: (userData: { user: User; token: string }) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,11 +87,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    navigate('/');
+  const googleLogin = (userData: { user: User; token: string }) => {
+    localStorage.setItem('token', userData.token);
+    localStorage.setItem('user', JSON.stringify(userData.user));
+    setUser(userData.user);
+  };
+
+  const logout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/auth/logout`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+    } catch (error) {
+      console.error('AuthContext: logout - Error sending logout request to backend:', error);
+      // Continue with client-side logout even if backend request fails
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+      navigate('/');
+    }
   };
 
   const updateUser = async (userData: Partial<User>) => {
@@ -110,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, token: localStorage.getItem('token') }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, token: localStorage.getItem('token'), googleLogin }}>
       {children}
     </AuthContext.Provider>
   );

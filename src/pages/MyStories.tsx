@@ -151,8 +151,10 @@ const WritersCorner = () => {
   };
 
   const handleImageLinkAdd = () => {
+    console.log('MyStories.tsx: Before adding image, currentBlog.images:', currentBlog.images);
     if (newImageLink.trim() && !currentBlog.images.includes(newImageLink.trim())) {
       setCurrentBlog({ ...currentBlog, images: [...currentBlog.images, newImageLink.trim()] });
+      console.log('MyStories.tsx: After adding image, currentBlog.images:', [...currentBlog.images, newImageLink.trim()]);
       setNewImageLink('');
     }
   };
@@ -182,6 +184,7 @@ const WritersCorner = () => {
         published: isPublished,
         country: currentBlog.country,
       };
+      console.log('MyStories.tsx: Submitting blogData with images:', blogData.images);
 
       if (isEditing) {
         await apiService.updateBlog(currentBlog._id, blogData);
