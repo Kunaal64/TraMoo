@@ -15,16 +15,90 @@ const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const helmet = require('helmet');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000||8080;
+const PORT = process.env.PORT || 5000;
+
+// Simple in-memory cache
+const responseCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
+
+// Rate limiting configuration
+const RATE_LIMIT_DELAY = 2000; // 2 seconds between requests
+let lastRequestTime = 0;
+
+// Rate limiter middleware
+const rateLimiter = async (req, res, next) => {
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+  
+  if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
+    const waitTime = RATE_LIMIT_DELAY - timeSinceLastRequest;
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  
+  lastRequestTime = Date.now();
+  next();
+};
+
+// Cache middleware
+const cacheMiddleware = (req, res, next) => {
+  const cacheKey = `${req.path}:${JSON.stringify(req.body)}`;
+  const cached = responseCache.get(cacheKey);
+  
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    console.log('Serving from cache');
+    return res.json(cached.data);
+  }
+  
+  // Override res.json to cache responses
+  const originalJson = res.json;
+  res.json = function(data) {
+    responseCache.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
+    originalJson.call(this, data);
+  };
+  
+  next();
+};
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const JWT_SECRET = process.env.JWT_SECRET;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
+
+// Validate required environment variables
+const requiredEnvVars = ['GEMINI_API_KEY', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error('Missing required environment variables:', missingEnvVars.join(', '));
+  process.exit(1);
+}
+
+// Initialize Gemini API with configuration
+const API_KEY = process.env.GEMINI_API_KEY;
+const API_VERSION = 'v1'; // Using v1 API for better stability
+const MODEL_ID = 'gemini-1.5-pro-latest'; // Using the latest stable model
+
+let genAI;
+try {
+  genAI = new GoogleGenerativeAI(API_KEY, {
+    // The SDK will use the latest stable version by default
+  });
+  console.log('Gemini API initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize Gemini API:', error);
+  process.exit(1);
+}
+
+// Log API key status (first 5 chars for security)
+console.log('Gemini API Key status:', API_KEY ? `Loaded (starts with: ${API_KEY.substring(0, 5)}...)` : 'Not set!');
 
 // Initialize Google OAuth2Client
 const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
@@ -58,11 +132,15 @@ const corsOptions = {
     'http://localhost:8080',
     'http://localhost:3000',
     'http://localhost:5000',
-    process.env.VITE_BACKEND_URL
+    'http://localhost:8081',
+    process.env.VITE_BACKEND_URL,
+    process.env.VITE_FRONTEND_URL
   ].filter(Boolean),
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 // Middleware
@@ -162,8 +240,16 @@ const BlogSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
+const ChatMessageSchema = new mongoose.Schema({
+  chatSessionId: { type: String, required: true, index: true }, // To group messages by session
+  sender: { type: String, required: true }, // 'user' or 'bot'
+  message: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now }, // Changed back to Date type
+});
+
 const User = mongoose.model('User', UserSchema);
 const Blog = mongoose.model('Blog', BlogSchema);
+const ChatMessage = mongoose.model('ChatMessage', ChatMessageSchema);
 
 // Routes
 
@@ -235,38 +321,38 @@ app.post('/api/auth/google', async (req, res) => {
       audience: GOOGLE_CLIENT_ID,
     });
     const payload = ticket.getPayload();
-    const { sub, email, name, picture } = payload;
+    const { email, name, picture } = payload;
 
     let user = await User.findOne({ email });
 
     if (!user) {
-      // Create a new user if they don't exist
-      user = new User({
-        name: name,
-        email: email,
-        password: sub, // Use sub as a placeholder password for Google users
-        avatar: picture,
+      // If user doesn't exist, create a new one. Dummy password for Google users.
+      const salt = await bcrypt.genSalt(12);
+      const hashedPassword = await bcrypt.hash(email + '_google_temp_password', salt); // Unique dummy password
+      user = new User({ 
+        name, 
+        email, 
+        password: hashedPassword, 
         isGoogleUser: true,
+        avatar: picture || '/placeholder-user.jpg' // Store Google profile picture
       });
       await user.save();
-      console.log(`New Google user logged in: ${user.name}`); // Log for new Google user
     } else if (!user.isGoogleUser) {
-      // If a user with this email exists but isn't a Google user, prevent login
-      return res.status(400).json({ message: 'Email already registered with traditional login. Please use traditional login.' });
+      // If a user with this email exists but is not a Google user, prevent login via Google
+      return res.status(409).json({ message: 'An account with this email already exists. Please sign in using your password, or link your Google account in your profile settings.' });
     } else {
-      console.log(`Existing Google user logged in: ${user.name}`); // Log for existing Google user
+      // Update last active for existing Google users
+      user.lastActive = new Date();
+      await user.save();
     }
 
-    user.lastActive = new Date();
-    await user.save();
-
     const token = generateToken(user._id);
-    res.status(200).json({
+    console.log(`Google user logged in: ${user.name}`);
+    res.json({
       message: 'Google login successful',
       user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
       token,
     });
-
   } catch (error) {
     console.error('Google authentication error:', error);
     res.status(500).json({ message: 'Google authentication failed', error: error.message });
@@ -707,12 +793,242 @@ app.post('/api/blogs/:id/comment', protect, async (req, res) => {
   }
 });
 
-// app.post('/api/upload', upload.single('file'), (req, res) => {
-//   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-//   res.json({ message: 'File uploaded successfully', url: `/uploads/${req.file.filename}`, filename: req.file.filename });
-// }); // Removed because it's not on the list of desired logs and can be noisy.
+// Chatbot API Endpoints
+app.get('/api/chat/history/:chatSessionId', protect, cacheMiddleware, async (req, res) => {
+  try {
+    const { chatSessionId } = req.params;
+    if (!chatSessionId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'chatSessionId is required' 
+      });
+    }
+    
+    console.log(`Fetching chat history for session: ${chatSessionId}`);
+    const messages = await ChatMessage.find({ chatSessionId }).sort({ timestamp: 1 });
+    
+    // Format the response to match expected frontend format
+    const formattedMessages = messages.map(msg => ({
+      _id: msg._id,
+      sender: msg.sender,
+      message: msg.message,
+      timestamp: msg.timestamp.toISOString()
+    }));
+    
+    console.log(`Returning ${formattedMessages.length} messages`);
+    res.json(formattedMessages);
+  } catch (error) {
+    console.error('Error fetching chat history:', {
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch chat history',
+      error: error.message 
+    });
+  }
+});
 
-// app.get('/api/health', (req, res) => res.json({ message: 'Server is running', timestamp: new Date().toISOString() })); // Removed this as it's not on the list.
+// Helper function to delay execution
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req, res) => {
+  try {
+    const { message, chatSessionId } = req.body;
+    
+    if (!message || !chatSessionId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Message and chatSessionId are required.' 
+      });
+    }
+
+    // Save user message
+    const userMessage = new ChatMessage({
+      chatSessionId,
+      sender: 'user',
+      message: message.trim(),
+      timestamp: new Date(),
+    });
+    await userMessage.save();
+
+    try {
+      console.log('Initializing Gemini model...');
+      // Get the model instance with optimized settings
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-pro', // Using the standard model for better compatibility
+      }, {
+        generationConfig: {
+          maxOutputTokens: 500,
+          temperature: 0.7,
+          topP: 0.8,
+          topK: 40,
+        },
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+        ],
+      });
+      
+      // Add a small delay to respect rate limits
+      await delay(1000);
+      
+      console.log('Fetching chat history...');
+      // Get chat history
+      const chatHistory = await ChatMessage.find({ 
+        chatSessionId 
+      }).sort({ timestamp: 1 });
+      
+      console.log(`Found ${chatHistory.length} messages in history`);
+      
+      // Format chat history for Gemini, limit to last 5 messages to reduce tokens
+      const recentHistory = chatHistory.slice(-5);
+      const formattedHistory = recentHistory.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: String(msg.message || '') }]
+      }));
+
+      console.log('Starting chat session with history:', formattedHistory.length, 'messages');
+      
+      // Start a chat session with limited history
+      const chat = model.startChat({
+        history: formattedHistory,
+      });
+      
+      // Add a small delay before sending the message
+      await delay(1000);
+
+      console.log('Sending message to Gemini...');
+      // Send message to Gemini API with retry logic
+      let result;
+      const maxRetries = 2;
+      let lastError;
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          if (attempt > 0) {
+            console.log(`Retry attempt ${attempt} after delay...`);
+            await delay(2000 * attempt); // Exponential backoff
+          }
+          
+          // Send the message with the existing chat history
+          result = await chat.sendMessage({
+            role: 'user',
+            parts: [{
+              text: message
+            }]
+          });
+          console.log('Received response from Gemini');
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          console.error(`Attempt ${attempt + 1} failed:`, error.message);
+          if (attempt === maxRetries) throw error;
+        }
+      }
+      
+      if (lastError) {
+        console.error('Error sending message to Gemini after retries:', {
+          message: lastError.message,
+          code: lastError.code,
+          status: lastError.status,
+          stack: lastError.stack
+        });
+        throw new Error(`Failed to get response from Gemini after retries: ${lastError.message}`);
+      }
+      
+      // Extract response text
+      let botResponseText = '';
+      try {
+        const response = await result.response;
+        // Handle both text() and text property for backward compatibility
+        botResponseText = typeof response.text === 'function' 
+          ? await response.text() 
+          : response.text;
+        console.log('Successfully extracted response text');
+      } catch (error) {
+        console.error('Error extracting text from Gemini response:', {
+          message: error.message,
+          response: result?.response,
+          error: error.stack
+        });
+        throw new Error(`Failed to process Gemini response: ${error.message}`);
+      }
+
+      // Save bot response
+      const botMessage = new ChatMessage({
+        chatSessionId,
+        sender: 'bot',
+        message: botResponseText,
+        timestamp: new Date(),
+      });
+      await botMessage.save();
+
+      // Return both messages in the response
+      return res.status(200).json({
+        success: true,
+        messages: [
+          {
+            type: 'user',
+            text: userMessage.message,
+            timestamp: userMessage.timestamp.toISOString()
+          },
+          {
+            type: 'bot',
+            text: botMessage.message,
+            timestamp: botMessage.timestamp.toISOString()
+          }
+        ]
+      });
+    } catch (error) {
+      console.error('Error generating bot response:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Failed to generate bot response',
+        error: error.message 
+      });
+    }
+  } catch (error) {
+    console.error('Error processing chat message:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message 
+    });
+  }
+});
+
+app.delete('/api/chat/history/:chatSessionId', protect, async (req, res) => {
+  try {
+    const { chatSessionId } = req.params;
+    
+    if (!chatSessionId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'chatSessionId is required' 
+      });
+    }
+    
+    const result = await ChatMessage.deleteMany({ chatSessionId });
+    
+    res.json({ 
+      success: true, 
+      message: 'Chat history cleared successfully',
+      deletedCount: result.deletedCount 
+    });
+  } catch (error) {
+    console.error('Error clearing chat history:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to clear chat history', 
+      error: error.message 
+    });
+  }
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

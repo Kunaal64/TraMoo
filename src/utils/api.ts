@@ -97,6 +97,37 @@ class ApiService {
     });
   }
 
+  // Chat methods
+  async sendChatMessage(message: string, chatSessionId: string) {
+    return this.request<{
+      success: boolean;
+      messages: Array<{
+        type: 'user' | 'bot';
+        text: string;
+        timestamp: string;
+      }>;
+    }>('/chat/message', {
+      method: 'POST',
+      body: JSON.stringify({ message, chatSessionId }),
+    });
+  }
+
+  async getChatHistory(chatSessionId: string) {
+    return this.request<Array<{
+      _id: string;
+      chatSessionId: string;
+      sender: 'user' | 'bot';
+      message: string;
+      timestamp: string;
+    }>>(`/chat/history/${chatSessionId}`);
+  }
+
+  async clearChatHistory(chatSessionId: string) {
+    return this.request(`/chat/history/${chatSessionId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Blog methods
   async getBlogs(page: number = 1, limit: number = 10) {
     const response = await this.request<any>(`/blogs?page=${page}&limit=${limit}`);

@@ -377,3 +377,61 @@ html.dark {
 }
 
 /* Removed overlay for light mode image */
+
+@keyframes bounce-dot {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1.0);
+  }
+}
+
+.animate-bounce-dot {
+  animation: bounce-dot 1.4s infinite ease-in-out both;
+}
+
+.animation-delay-200 {
+  animation-delay: -0.32s;
+}
+
+.animation-delay-400 {
+  animation-delay: -0.16s;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+.chat-message-bubble pre {
+  white-space: pre-wrap; /* Ensures text wraps within the bubble */
+  word-wrap: break-word; /* Breaks long words */
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  padding: 0.75em 1em;
+  border-radius: 0.5rem;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  font-size: 0.875em; /* Tailwind's text-sm */
+  line-height: 1.5; /* Tailwind's leading-relaxed */
+}
+
+.chat-message-bubble code {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  font-family: 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.875em;
+}
