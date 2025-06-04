@@ -55,9 +55,20 @@ class ApiService {
       const responseData = await response.json().catch(() => ({}));
       
       if (!response.ok) {
-        const errorMessage = responseData.message || `HTTP error! status: ${response.status}`;
-        console.error(`[API Error] ${response.status} ${response.statusText}:`, errorMessage);
-        throw new Error(errorMessage);
+        // If the response is not OK, try to extract a more specific error
+        const errorData = responseData || {};
+        let errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
+
+        // If there are validation errors from the backend, prioritize them
+        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          errorMessage = errorData.errors.map((err: any) => err.msg).join('; ');
+        }
+
+        console.error(`[API Error] ${response.status} ${response.statusText}:`, errorData);
+        const error = new Error(errorMessage);
+        // Attach the full errorData to the error object for more detailed handling in frontend
+        (error as any).response = { status: response.status, data: errorData };
+        throw error;
       }
       
       return responseData;

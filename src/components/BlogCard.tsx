@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, User, Heart, MessageSquare } from 'lucide-react';
 import TagChip from './TagChip';
+import { getInitials } from '../utils/helpers';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface BlogCardProps {
   _id: string;
@@ -135,8 +137,11 @@ const BlogCard: React.FC<BlogCardProps> = ({
           
           <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-1">
-                <User size={14} />
+              <div className="flex items-center space-x-2">
+                <Avatar className="h-7 w-7">
+                  {author?.avatar && <AvatarImage src={getFullImageUrl(author.avatar)} alt={author.name || 'Author Avatar'} />}
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(author?.name || '')}</AvatarFallback>
+                </Avatar>
                 <span className="font-medium">{author?.name}</span>
               </div>
               <div className="flex items-center space-x-1">

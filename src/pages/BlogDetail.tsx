@@ -8,6 +8,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Clock, User, Heart, MessageSquare, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 import { apiService } from '../utils/api';
+import { getInitials } from '../utils/helpers';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 const BlogDetail = () => {
   const { id } = useParams();
@@ -227,12 +229,18 @@ const BlogDetail = () => {
           {blog.subtitle && <h2 className="text-2xl text-muted-foreground mb-6 font-medium">{blog.subtitle}</h2>}
 
           <div className="flex flex-wrap items-center gap-6 text-base text-muted-foreground mb-8 border-b border-border pb-4">
-            <div className="flex items-center gap-2"><User size={18} className="text-primary" /><span>{blog.author?.name}</span></div>
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                {blog.author?.avatar && <AvatarImage src={getFullImageUrl(blog.author.avatar)} alt={blog.author.name || 'Author Avatar'} />}
+                <AvatarFallback className="bg-primary text-primary-foreground text-sm">{getInitials(blog.author?.name || '')}</AvatarFallback>
+              </Avatar>
+              <span>{blog.author?.name}</span>
+            </div>
             <div className="flex items-center gap-2"><Calendar size={18} className="text-primary" /><span>{new Date(blog.createdAt).toLocaleDateString()}</span></div>
             <button
               onClick={handleLike}
               disabled={isLiking}
-              className={`flex items-center gap-2 transition-colors duration-200 ${isLikedByUser ? 'text-destructive animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
+              className={`flex items-center gap-2 transition-colors duration-200 ${isLikedByUser ? 'text-destructive' : 'text-muted-foreground hover:text-primary'}`}
             >
               <Heart size={18} fill={isLikedByUser ? 'currentColor' : 'none'} />
               <span>{Array.isArray(blog.likes) ? blog.likes.length : 0}</span>
@@ -274,9 +282,10 @@ const BlogDetail = () => {
                     className="flex items-start space-x-4 p-4 rounded-lg bg-card border border-border shadow-sm"
                   >
                     <div className="flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-                        {comment.author?.name ? comment.author.name.charAt(0).toUpperCase() : 'U'}
-                      </div>
+                      <Avatar className="w-10 h-10">
+                        {comment.author?.avatar && <AvatarImage src={getFullImageUrl(comment.author.avatar)} alt={comment.author.name || 'Commenter Avatar'} />}
+                        <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg">{getInitials(comment.author?.name || '')}</AvatarFallback>
+                      </Avatar>
                     </div>
                     <div className="flex-grow">
                       <div className="flex justify-between items-center mb-1">
@@ -288,10 +297,10 @@ const BlogDetail = () => {
                       <p className="text-foreground mt-1">{comment.content}</p>
                       {user && user.id === comment.author?._id && (
                         <Button
-                          variant="destructive"
+                          variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteComment(comment._id)}
-                          className="mt-2 text-xs py-1 px-2 rounded-md border border-destructive/50 bg-destructive/10 hover:bg-destructive/20 transition-all duration-200 flex items-center gap-1"
+                          className="ml-auto mt-2 text-xs py-1 px-2 rounded-md transition-all duration-200 flex items-center gap-1 text-destructive hover:bg-destructive/10"
                         >
                           <Trash2 size={12} />
                           Delete

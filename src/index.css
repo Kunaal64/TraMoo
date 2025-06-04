@@ -211,7 +211,7 @@ h1, h2, h3, h4, h5, h6 {
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 90% 50%; /* Brighter red for destructive in light mode */
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 222.2 84% 4.9%; /* Changed to a very dark color for better contrast in light mode */
 
     /* Custom Success Colors for Light Mode */
     --success: 142 70% 49%; /* A slightly muted, aesthetic green */

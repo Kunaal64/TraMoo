@@ -146,6 +146,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   avatar: { type: String, default: '' },
   bio: { type: String, default: '' },
+  country: { type: String, default: '' },
   countriesExplored: { type: Number, default: 0 },
   photosShared: { type: Number, default: 0 },
   storiesWritten: { type: Number, default: 0 },
@@ -316,8 +317,89 @@ app.get('/api/auth/me', protect, async (req, res) => {
     const user = await User.findById(req.user).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    res.json({ user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar } });
+    res.json({ user: { 
+      id: user._id, 
+      name: user.name, 
+      email: user.email, 
+      avatar: user.avatar, 
+      bio: user.bio, 
+      country: user.country, 
+      countriesExplored: user.countriesExplored, 
+      photosShared: user.photosShared, 
+      storiesWritten: user.storiesWritten, 
+      joinedAt: user.joinedAt, 
+      lastActive: user.lastActive, 
+      isGoogleUser: user.isGoogleUser,
+    } });
   } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update User Profile Route
+app.put('/api/auth/update', protect, async (req, res) => {
+  try {
+    const userId = req.user; // User ID from protect middleware
+    const { name, email, avatar, bio, country } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update fields if provided
+    if (name) user.name = name;
+    if (email) {
+      // Check if new email already exists for another user
+      const existingUserWithEmail = await User.findOne({ email });
+      if (existingUserWithEmail && existingUserWithEmail._id.toString() !== userId) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+      user.email = email;
+    }
+    if (avatar) user.avatar = avatar;
+    if (bio) user.bio = bio;
+    if (country) user.country = country;
+
+    await user.save();
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar, bio: user.bio, country: user.country }
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Delete User Account Route
+app.delete('/api/auth/delete', protect, async (req, res) => {
+  try {
+    const userId = req.user; // User ID from protect middleware
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Delete user's blogs
+    await Blog.deleteMany({ author: userId });
+
+    // Delete user's comments from all blogs
+    await Blog.updateMany(
+      {}, 
+      { $pull: { comments: { author: userId } } }
+    );
+
+    // Finally, delete the user account
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting account:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

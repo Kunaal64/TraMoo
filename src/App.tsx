@@ -18,6 +18,7 @@ import MyStories from './pages/MyStories';
 import BlogDetail from './pages/BlogDetail';
 import LikedBlogs from './pages/LikedBlogs';
 import NotFound from './pages/NotFound';
+import Profile from './pages/Profile';
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,11 @@ const App = () => {
                     <Route path="writers-corner" element={
                       <ProtectedRoute>
                         <MyStories />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="profile" element={
+                      <ProtectedRoute>
+                        <Profile />
                       </ProtectedRoute>
                     } />
                     <Route path="*" element={<NotFound />} />

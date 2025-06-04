@@ -199,7 +199,17 @@ const Login = () => {
       }
     } catch (error: any) {
       console.error('Authentication error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Something went wrong. Please try again.';
+      console.log('Full error object from backend:', error.response?.data);
+      // Extract more specific error messages from the backend
+      let errorMessage = 'Something went wrong. Please try again.';
+      if (error.response?.data?.errors && error.response.data.errors.length > 0) {
+        errorMessage = error.response.data.errors.map((err: any) => err.msg).join('; ');
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: 'Error',
         description: errorMessage,

@@ -12,6 +12,8 @@ import Markdown from 'react-markdown';
 import BlogCard from '../components/BlogCard';
 import { Link } from 'react-router-dom';
 import { apiService } from '../utils/api';
+import { getInitials } from '../utils/helpers';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface WriterStats {
   storiesWritten: number;
@@ -492,9 +494,10 @@ const WritersCorner = () => {
             <div className="space-y-6 mb-8">
               {currentBlog.comments.map((comment, index) => (
                 <div key={index} className="bg-card p-4 rounded-lg flex gap-3 border border-border items-start">
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-                    {comment.author?.name ? comment.author.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
+                  <Avatar className="w-10 h-10">
+                    {comment.author?.avatar && <AvatarImage src={getFullImageUrl(comment.author.avatar)} alt={comment.author.name || 'Commenter Avatar'} />}
+                    <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg">{getInitials(comment.author?.name || '')}</AvatarFallback>
+                  </Avatar>
                   <div className="flex-grow">
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-semibold text-foreground text-md">{comment.author?.name || 'Anonymous User'}</p>
@@ -504,10 +507,10 @@ const WritersCorner = () => {
                   </div>
                   {(user && user.id === currentBlog.author._id) && (
                     <Button
-                      variant="destructive"
+                      variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteComment(currentBlog._id, comment._id)}
-                      className="mt-2 text-xs py-1 px-2 rounded-md border border-destructive/50 bg-destructive/10 hover:bg-destructive/20 transition-all duration-200 flex items-center gap-1"
+                      className="ml-auto mt-2 text-xs py-1 px-2 rounded-md transition-all duration-200 flex items-center gap-1 text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 size={12} />
                       Delete
