@@ -492,26 +492,22 @@ const WritersCorner = () => {
             <div className="space-y-6 mb-8">
               {currentBlog.comments.map((comment, index) => (
                 <div key={index} className="bg-card p-4 rounded-lg flex gap-3 border border-border items-start">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-base font-medium overflow-hidden flex-shrink-0">
-                    {comment.author?.avatar ? (
-                      <img src={getFullImageUrl(comment.author.avatar)} alt="Avatar" className="w-full h-full object-cover rounded-full" />
-                    ) : (
-                      comment.author?.name?.charAt(0)?.toUpperCase() || 'U'
-                    )}
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
+                    {comment.author?.name ? comment.author.name.charAt(0).toUpperCase() : 'U'}
                   </div>
                   <div className="flex-grow">
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-semibold text-foreground text-md">{comment.author?.name || 'Anonymous User'}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                     <p className="text-foreground mt-1 text-sm">{comment.content}</p>
                   </div>
                   {(user && user.id === currentBlog.author._id) && (
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDeleteComment(currentBlog._id, comment._id)}
-                      className="text-destructive hover:bg-destructive/10 p-1 h-auto"
+                      className="mt-2 text-xs py-1 px-2 rounded-md border border-destructive/50 bg-destructive/10 hover:bg-destructive/20 transition-all duration-200"
                     >
                       Delete
                     </Button>

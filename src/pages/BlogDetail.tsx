@@ -190,30 +190,30 @@ const BlogDetail = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="glass p-8 rounded-2xl shadow-lg"
+          className="glass p-8 rounded-2xl shadow-lg border border-border"
         >
           {blog.images?.length > 0 && (
-            <div className="relative w-full h-96 rounded-lg overflow-hidden mb-6 group">
-              <img src={getFullImageUrl(blog.images[currentImageIndex])} alt={blog.title} className="w-full h-full object-cover transition-transform duration-300" />
+            <div className="relative w-full h-96 rounded-lg overflow-hidden mb-8 group">
+              <img src={getFullImageUrl(blog.images[currentImageIndex])} alt={blog.title} className="w-full h-full object-cover transition-transform duration-500 ease-in-out" />
               {blog.images.length > 1 && (
                 <>
                   <Button
                     onClick={() => setCurrentImageIndex((prevIndex) => (prevIndex === 0 ? blog.images.length - 1 : prevIndex - 1))}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-primary/50 hover:bg-primary/70 text-primary-foreground p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-primary/70 hover:bg-primary text-primary-foreground p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 shadow-md"
                   >
-                    <ArrowLeft size={24} />
+                    <ArrowLeft size={28} />
                   </Button>
                   <Button
                     onClick={() => setCurrentImageIndex((prevIndex) => (prevIndex === blog.images.length - 1 ? 0 : prevIndex + 1))}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-primary/50 hover:bg-primary/70 text-primary-foreground p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-primary/70 hover:bg-primary text-primary-foreground p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 shadow-md"
                   >
-                    <ArrowRight size={24} />
+                    <ArrowRight size={28} />
                   </Button>
                   <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
                     {blog.images.map((_, idx) => (
                       <span
                         key={idx}
-                        className={`w-2 h-2 rounded-full ${currentImageIndex === idx ? 'bg-primary' : 'bg-muted-foreground/50'} cursor-pointer`}
+                        className={`w-3 h-3 rounded-full transition-colors duration-300 ${currentImageIndex === idx ? 'bg-primary scale-125' : 'bg-muted-foreground/60'} cursor-pointer`}
                         onClick={() => setCurrentImageIndex(idx)}
                       />
                     ))}
@@ -223,69 +223,84 @@ const BlogDetail = () => {
             </div>
           )}
 
-          <h1 className="text-4xl font-bold text-foreground mb-2">{blog.title}</h1>
-          {blog.subtitle && <h2 className="text-xl text-muted-foreground mb-4">{blog.subtitle}</h2>}
+          <h1 className="text-5xl font-extrabold text-foreground mb-3 leading-tight">{blog.title}</h1>
+          {blog.subtitle && <h2 className="text-2xl text-muted-foreground mb-6 font-medium">{blog.subtitle}</h2>}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
-            <div className="flex items-center gap-1"><User size={16} /><span>{blog.author?.name}</span></div>
-            <div className="flex items-center gap-1"><Calendar size={16} /><span>{new Date(blog.createdAt).toLocaleDateString()}</span></div>
+          <div className="flex flex-wrap items-center gap-6 text-base text-muted-foreground mb-8 border-b border-border pb-4">
+            <div className="flex items-center gap-2"><User size={18} className="text-primary" /><span>{blog.author?.name}</span></div>
+            <div className="flex items-center gap-2"><Calendar size={18} className="text-primary" /><span>{new Date(blog.createdAt).toLocaleDateString()}</span></div>
             <button
               onClick={handleLike}
               disabled={isLiking}
-              className={`flex items-center gap-1 ${isLikedByUser ? 'text-destructive' : 'text-muted-foreground hover:text-primary'}`}
+              className={`flex items-center gap-2 transition-colors duration-200 ${isLikedByUser ? 'text-destructive animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
             >
-              <Heart size={16} fill={isLikedByUser ? 'currentColor' : 'none'} />
+              <Heart size={18} fill={isLikedByUser ? 'currentColor' : 'none'} />
               <span>{Array.isArray(blog.likes) ? blog.likes.length : 0}</span>
             </button>
-            <div className="flex items-center gap-1"><MessageSquare size={16} /><span>{blog.comments.length}</span></div>
+            <div className="flex items-center gap-2"><MessageSquare size={18} className="text-primary" /><span>{blog.comments.length}</span></div>
           </div>
 
-          <div className="prose dark:prose-invert max-w-none text-foreground mb-8">
+          <div className="prose dark:prose-invert max-w-none text-foreground leading-relaxed mb-8">
             <Markdown>{blog.content}</Markdown>
           </div>
 
           {/* Comments */}
           <div className="mt-8 border-t border-border pt-8">
-            <h3 className="text-2xl font-bold text-foreground mb-6">Comments ({blog.comments.length})</h3>
+            <h3 className="text-3xl font-bold text-foreground mb-8">Comments ({blog.comments.length})</h3>
 
-            {blog.comments.length === 0 && <p className="text-muted-foreground">No comments yet.</p>}
-
-            <div className="space-y-6 mb-8">
-              {blog.comments.map((comment, index) => (
-                <div key={index} className="bg-card p-4 rounded-lg flex gap-3 border border-border items-start">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-base font-medium overflow-hidden flex-shrink-0">
-                    {comment.author?.avatar ? (
-                      <img src={getFullImageUrl(comment.author.avatar)} alt="Avatar" className="w-full h-full object-cover rounded-full" />
-                    ) : (
-                      comment.author?.name?.charAt(0)?.toUpperCase() || 'U'
-                    )}
-                  </div>
-                  <div className="flex-grow">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-semibold text-foreground text-md">{comment.author?.name || 'Anonymous User'}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <p className="text-foreground mt-1 text-sm">{comment.content}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <form onSubmit={handleAddComment} className="mt-8 p-6 glass rounded-2xl shadow-lg">
-              <h4 className="text-xl font-bold text-foreground mb-4">Add a Comment</h4>
+            <form onSubmit={handleAddComment} className="mb-8 p-4 border border-border rounded-lg bg-card shadow-sm">
               <Textarea
+                placeholder="Write your comment here..."
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
-                placeholder="Write your comment..."
+                className="w-full mb-4 bg-background text-foreground border-input focus-visible:ring-ring"
                 rows={4}
-                className="mb-4 border border-input bg-background text-foreground"
-                required
               />
-              <Button type="submit" disabled={isCommenting || !user} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-3xl">
-                {isCommenting ? 'Posting...' : 'Post Comment'}
+              <Button type="submit" disabled={isCommenting || !commentContent.trim()} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
+                {isCommenting ? 'Posting...' : 'Add Comment'}
               </Button>
-              {!user && <p className="text-destructive text-sm mt-2">You must be logged in to comment.</p>}
             </form>
+
+            <div className="space-y-6">
+              {blog.comments.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">No comments yet. Be the first to comment!</p>
+              ) : (
+                blog.comments.map((comment) => (
+                  <motion.div
+                    key={comment._id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex items-start space-x-4 p-4 rounded-lg bg-card border border-border shadow-sm"
+                  >
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
+                        {comment.author?.name ? comment.author.name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    </div>
+                    <div className="flex-grow">
+                      <div className="flex justify-between items-center mb-1">
+                        <p className="font-semibold text-foreground">{comment.author?.name || 'Unknown User'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <p className="text-foreground mt-1">{comment.content}</p>
+                      {user && user.id === comment.author?._id && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteComment(comment._id)}
+                          className="mt-2 text-xs py-1 px-2 rounded-md border border-destructive/50 bg-destructive/10 hover:bg-destructive/20 transition-all duration-200"
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
           </div>
         </motion.article>
       </div>
