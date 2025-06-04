@@ -11,6 +11,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import MainLayout from './layout/MainLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
+import Chatbot from './components/Chatbot';
 import Home from './pages/Home';
 import Blogs from './pages/Blogs';
 import Login from './pages/Login';
@@ -34,6 +35,7 @@ const App = () => {
             <AuthProvider>
               <SearchProvider>
                 <ScrollToTop />
+                <Chatbot />
                 <Routes>
                   <Route path="/" element={<MainLayout />}>
                     <Route index element={<Home />} />
