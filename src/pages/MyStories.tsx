@@ -13,7 +13,8 @@ import BlogCard from '../components/BlogCard';
 import { Link } from 'react-router-dom';
 import { apiService } from '../utils/api';
 import { getInitials } from '../utils/helpers';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 
 interface WriterStats {
   storiesWritten: number;
@@ -496,7 +497,7 @@ const WritersCorner = () => {
                 <div key={index} className="bg-card p-4 rounded-lg flex gap-3 border border-border items-start">
                   <Avatar className="w-10 h-10">
                     {comment.author?.avatar && <AvatarImage src={getFullImageUrl(comment.author.avatar)} alt={comment.author.name || 'Commenter Avatar'} />}
-                    <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg">{getInitials(comment.author?.name || '')}</AvatarFallback>
+                    <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg dark:bg-primary-foreground dark:text-primary">{getInitials(comment.author?.name || '')}</AvatarFallback>
                   </Avatar>
                   <div className="flex-grow">
                     <div className="flex items-center justify-between mb-1">

@@ -139,22 +139,6 @@ class ApiService {
       method: 'DELETE',
     });
   }
-
-  // Media upload
-  async uploadMedia(file: File) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const token = localStorage.getItem('token'); // Retrieve token for media upload
-
-    return fetch(`${this.baseUrl}/upload`, {
-      method: 'POST',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }), // Add token if available
-      },
-      body: formData,
-    }).then(response => response.json());
-  }
 }
 
 // Create a single instance of the API service

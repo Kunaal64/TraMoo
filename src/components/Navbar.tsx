@@ -8,7 +8,13 @@ import SearchBar from './SearchBar';
 import { useAuth } from '../context/AuthContext';
 import { useSearch } from '../context/SearchContext';
 import { getInitials } from '../utils/helpers';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { SheetClose } from '@/components/ui/sheet';
+import { NavLink } from 'react-router-dom';
+import { ModeToggle } from './mode-toggle';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -129,16 +135,15 @@ const Navbar = () => {
               
               {isAuthenticated ? (
                 <>
-                  <Link
+                  <NavLink
                     to="/profile"
                     className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-xl transition-all btn-hover font-medium border border-primary text-primary hover:bg-primary/10 dark:border-primary-foreground dark:text-primary-foreground dark:hover:bg-primary/10"
                   >
                     <Avatar className="h-6 w-6">
-                      {user?.avatar && <AvatarImage src={`${import.meta.env.VITE_BACKEND_URL}${user.avatar}`} alt={user.name || 'User Avatar'} />}
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(user?.name || '')}</AvatarFallback>
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs dark:bg-primary-foreground dark:text-primary">{getInitials(user?.name || '')}</AvatarFallback>
                     </Avatar>
                     <span>{user?.name || 'Profile'}</span>
-                  </Link>
+                  </NavLink>
                   <button
                     onClick={handleLogout}
                     className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-xl transition-all btn-hover font-medium border border-destructive text-destructive hover:bg-destructive/10 dark:border-destructive dark:text-destructive-foreground dark:hover:bg-destructive/30"
@@ -205,17 +210,16 @@ const Navbar = () => {
               ))}
               {isAuthenticated ? (
                 <>
-                  <Link
+                  <NavLink
                     to="/profile"
                     onClick={() => setIsOpen(false)}
                     className="flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
                   >
                     <Avatar className="h-7 w-7">
-                      {user?.avatar && <AvatarImage src={`${import.meta.env.VITE_BACKEND_URL}${user.avatar}`} alt={user.name || 'User Avatar'} />}
-                      <AvatarFallback className="bg-primary text-primary-foreground">{getInitials(user?.name || '')}</AvatarFallback>
+                      <AvatarFallback className="bg-primary text-primary-foreground dark:bg-primary-foreground dark:text-primary">{getInitials(user?.name || '')}</AvatarFallback>
                     </Avatar>
                     <span>{user?.name || 'Profile'}</span>
-                  </Link>
+                  </NavLink>
                   <button
                     onClick={() => {handleLogout(); setIsOpen(false);}}
                     className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90"

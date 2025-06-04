@@ -9,7 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import { Calendar, Clock, User, Heart, MessageSquare, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 import { apiService } from '../utils/api';
 import { getInitials } from '../utils/helpers';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 const BlogDetail = () => {
   const { id } = useParams();
@@ -231,10 +232,11 @@ const BlogDetail = () => {
           <div className="flex flex-wrap items-center gap-6 text-base text-muted-foreground mb-8 border-b border-border pb-4">
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
-                {blog.author?.avatar && <AvatarImage src={getFullImageUrl(blog.author.avatar)} alt={blog.author.name || 'Author Avatar'} />}
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm">{getInitials(blog.author?.name || '')}</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground text-sm dark:bg-primary-foreground dark:text-primary">{getInitials(blog.author?.name || 'Unknown')}</AvatarFallback>
               </Avatar>
-              <span>{blog.author?.name}</span>
+              <span className="font-medium text-lg text-foreground">
+                {blog.author?.name || 'Unknown Author'}
+              </span>
             </div>
             <div className="flex items-center gap-2"><Calendar size={18} className="text-primary" /><span>{new Date(blog.createdAt).toLocaleDateString()}</span></div>
             <button
@@ -283,8 +285,7 @@ const BlogDetail = () => {
                   >
                     <div className="flex-shrink-0">
                       <Avatar className="w-10 h-10">
-                        {comment.author?.avatar && <AvatarImage src={getFullImageUrl(comment.author.avatar)} alt={comment.author.name || 'Commenter Avatar'} />}
-                        <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg">{getInitials(comment.author?.name || '')}</AvatarFallback>
+                        <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg dark:bg-primary-foreground dark:text-primary">{getInitials(comment.author?.name || 'Unknown')}</AvatarFallback>
                       </Avatar>
                     </div>
                     <div className="flex-grow">

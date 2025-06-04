@@ -5,7 +5,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const multer = require('multer');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const morgan = require('morgan');
@@ -116,35 +115,11 @@ mongoose.connect(MONGODB_URI, {
 .then(() => {})
 .catch((error) => { console.error('MongoDB connection error:', error); }); // Kept error log
 
-// File upload configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
-  filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif/;
-    const mimetype = allowedTypes.test(file.mimetype);
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    }
-    cb(new Error('Only images (jpeg, jpg, png, gif) are allowed'));
-  }
-});
-
 // Schemas
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  avatar: { type: String, default: '' },
   bio: { type: String, default: '' },
   country: { type: String, default: '' },
   countriesExplored: { type: Number, default: 0 },
@@ -196,7 +171,7 @@ const Blog = mongoose.model('Blog', BlogSchema);
 app.post('/api/auth/register', [
   body('name').notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Invalid email format'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+  body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -339,8 +314,57 @@ app.get('/api/auth/me', protect, async (req, res) => {
 // Update User Profile Route
 app.put('/api/auth/update', protect, async (req, res) => {
   try {
-    const userId = req.user; // User ID from protect middleware
-    const { name, email, avatar, bio, country } = req.body;
+    const userId = req.user;
+    const { name, email, country, bio, currentPassword, newPassword } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update basic profile info
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.country = country || user.country;
+    user.bio = bio || user.bio;
+
+    // Handle password change if newPassword is provided
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: 'Current password is required to change password.' });
+      }
+      // Check if user is a Google user and disallow password change
+      if (user.isGoogleUser) {
+        return res.status(400).json({ message: 'Google users cannot change password directly.' });
+      }
+      // Verify current password
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Invalid current password.' });
+      }
+
+      // Hash new password and save
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(newPassword, salt);
+    }
+
+    await user.save();
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: { id: user._id, name: user.name, email: user.email, bio: user.bio, country: user.country }
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Verify Current Password Route
+app.post('/api/auth/verify-current-password', protect, async (req, res) => {
+  try {
+    const userId = req.user;
+    const { currentPassword } = req.body;
 
     const user = await User.findById(userId);
 
@@ -348,28 +372,19 @@ app.put('/api/auth/update', protect, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update fields if provided
-    if (name) user.name = name;
-    if (email) {
-      // Check if new email already exists for another user
-      const existingUserWithEmail = await User.findOne({ email });
-      if (existingUserWithEmail && existingUserWithEmail._id.toString() !== userId) {
-        return res.status(400).json({ message: 'Email already in use' });
-      }
-      user.email = email;
+    if (user.isGoogleUser) {
+      return res.status(400).json({ message: 'Google users do not have a traditional password.' });
     }
-    if (avatar) user.avatar = avatar;
-    if (bio) user.bio = bio;
-    if (country) user.country = country;
 
-    await user.save();
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
 
-    res.json({
-      message: 'Profile updated successfully',
-      user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar, bio: user.bio, country: user.country }
-    });
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid current password.' });
+    }
+
+    res.status(200).json({ message: 'Current password verified successfully.' });
   } catch (error) {
-    console.error('Error updating profile:', error);
+    console.error('Error verifying current password:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { User } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -20,6 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -65,7 +67,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
+      toast({
+        title: 'Logged In',
+        description: 'You have successfully logged in!',
+      });
     } catch (error) {
+      console.error('AuthContext: login - Error:', error);
+      const errorMessage = axios.isAxiosError(error) && error.response?.data?.message 
+        ? error.response.data.message 
+        : 'Login failed. Please check your credentials.';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
       throw error;
     }
   };
@@ -82,7 +97,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
+      toast({
+        title: 'Registration Successful',
+        description: 'Welcome! Your account has been created.',
+      });
     } catch (error) {
+      console.error('AuthContext: register - Error:', error);
+      const errorMessage = axios.isAxiosError(error) && error.response?.data?.message 
+        ? error.response.data.message 
+        : 'Registration failed. Please try again.';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
       throw error;
     }
   };
@@ -91,6 +119,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('token', userData.token);
     localStorage.setItem('user', JSON.stringify(userData.user));
     setUser(userData.user);
+    toast({
+      title: 'Google Login Successful',
+      description: 'You have successfully logged in with Google!',
+    });
   };
 
   const logout = async () => {
@@ -101,9 +133,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           headers: { Authorization: `Bearer ${token}` }
         });
       }
+      toast({
+        title: 'Logged Out',
+        description: 'You have been successfully logged out.',
+      });
     } catch (error) {
       console.error('AuthContext: logout - Error sending logout request to backend:', error);
-      // Continue with client-side logout even if backend request fails
+      toast({
+        title: 'Logout Failed',
+        description: error.message || 'There was an issue logging out. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -123,7 +163,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       );
       setUser(response.data.user);
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile information has been successfully updated.',
+      });
     } catch (error) {
+      console.error('AuthContext: updateUser - Error:', error);
+      const errorMessage = axios.isAxiosError(error) && error.response?.data?.message 
+        ? error.response.data.message 
+        : 'Failed to update profile. Please try again.';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
       throw error;
     }
   };
