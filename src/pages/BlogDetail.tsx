@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Clock, User, Heart, MessageSquare, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Calendar, Clock, User, Heart, MessageSquare, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 import { apiService } from '../utils/api';
 
 const BlogDetail = () => {
@@ -291,8 +291,9 @@ const BlogDetail = () => {
                           variant="destructive"
                           size="sm"
                           onClick={() => handleDeleteComment(comment._id)}
-                          className="mt-2 text-xs py-1 px-2 rounded-md border border-destructive/50 bg-destructive/10 hover:bg-destructive/20 transition-all duration-200"
+                          className="mt-2 text-xs py-1 px-2 rounded-md border border-destructive/50 bg-destructive/10 hover:bg-destructive/20 transition-all duration-200 flex items-center gap-1"
                         >
+                          <Trash2 size={12} />
                           Delete
                         </Button>
                       )}

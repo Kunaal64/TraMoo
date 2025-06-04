@@ -507,8 +507,9 @@ const WritersCorner = () => {
                       variant="destructive"
                       size="sm"
                       onClick={() => handleDeleteComment(currentBlog._id, comment._id)}
-                      className="mt-2 text-xs py-1 px-2 rounded-md border border-destructive/50 bg-destructive/10 hover:bg-destructive/20 transition-all duration-200"
+                      className="mt-2 text-xs py-1 px-2 rounded-md border border-destructive/50 bg-destructive/10 hover:bg-destructive/20 transition-all duration-200 flex items-center gap-1"
                     >
+                      <Trash2 size={12} />
                       Delete
                     </Button>
                   )}
