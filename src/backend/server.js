@@ -84,7 +84,7 @@ if (missingEnvVars.length > 0) {
 // Initialize Gemini API with configuration
 const API_KEY = process.env.GEMINI_API_KEY;
 const API_VERSION = 'v1'; // Using v1 API for better stability
-const MODEL_ID = 'gemini-1.5-pro-latest'; // Using the latest stable model
+const MODEL_ID = 'gemini-1.5-pro-latest'; // Using the standard model for better compatibility
 
 let genAI;
 try {
@@ -857,7 +857,7 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
       console.log('Initializing Gemini model...');
       // Get the model instance with optimized settings
       const model = genAI.getGenerativeModel({ 
-        model: 'gemini-pro', // Using the standard model for better compatibility
+        model: 'gemini-1.5-flash', // Using the standard model for better compatibility
       }, {
         generationConfig: {
           maxOutputTokens: 500,
@@ -902,7 +902,7 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
       await delay(1000);
 
       console.log('Sending message to Gemini...');
-      // Send message to Gemini API with retry logic
+      // Send the message with the existing chat history
       let result;
       const maxRetries = 2;
       let lastError;
@@ -915,12 +915,7 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
           }
           
           // Send the message with the existing chat history
-          result = await chat.sendMessage({
-            role: 'user',
-            parts: [{
-              text: message
-            }]
-          });
+          result = await chat.sendMessage(message);
           console.log('Received response from Gemini');
           lastError = null;
           break;
