@@ -898,43 +898,73 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
     });
     await userMessage.save();
 
-    // Fetch recent chat history for context (last 5 messages excluding current one)
-    const chatHistory = await ChatMessage.find({ chatSessionId })
-      .sort({ timestamp: 1 })
-      .limit(5); // Limit to last 5 messages for context
+    // Check if Google AI is available
+    if (!GoogleGenerativeAI) {
+      // Save a default response since AI is not available
+      const botMessage = new ChatMessage({
+        chatSessionId,
+        sender: 'bot',
+        message: 'AI features are currently unavailable. Please try again later or contact support.',
+        timestamp: new Date(),
+      });
+      await botMessage.save();
+      
+      return res.status(200).json({
+        success: true,
+        message: 'AI features are currently unavailable',
+        response: botMessage
+      });
+    }
 
-    const formattedHistory = chatHistory.map(msg => ({
-      role: msg.sender === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.message }],
-    }));
+    // Initialize Google AI if available
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    try {
+      // Fetch recent chat history for context (last 5 messages excluding current one)
+      const chatHistory = await ChatMessage.find({ chatSessionId })
+        .sort({ timestamp: 1 })
+        .limit(5); // Limit to last 5 messages for context
 
-    let attempt = 0;
-    const maxAttempts = 3;
-    let geminiResponseText = 'Sorry, I am having trouble connecting right now. Please try again later.';
+      const formattedHistory = chatHistory.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.message }],
+      }));
 
-    while (attempt < maxAttempts) {
-      try {
-        const result = await model.startChat({
-          history: formattedHistory,
-          generationConfig: {
-            maxOutputTokens: 500,
-            temperature: 0.7,
-            topP: 0.9,
-            topK: 40,
-          },
-        }).sendMessage(message);
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-        geminiResponseText = result.response.text();
-        break; // Exit loop if successful
-      } catch (geminiError) {
-        console.error(`Gemini API Error on attempt ${attempt + 1}:`, geminiError);
-        attempt++;
-        if (attempt < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+      let attempt = 0;
+      const maxAttempts = 3;
+      let geminiResponseText = 'Sorry, I am having trouble connecting right now. Please try again later.';
+
+      while (attempt < maxAttempts) {
+        try {
+          const result = await model.startChat({
+            history: formattedHistory,
+            generationConfig: {
+              maxOutputTokens: 500,
+              temperature: 0.7,
+              topP: 0.9,
+              topK: 40,
+            },
+          }).sendMessage(message);
+
+          geminiResponseText = result.response.text();
+          break; // Exit loop if successful
+        } catch (geminiError) {
+          console.error(`Gemini API Error on attempt ${attempt + 1}:`, geminiError);
+          attempt++;
+          if (attempt < maxAttempts) {
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+          } else {
+            console.error('Max retry attempts reached');
+            throw geminiError; // Throw the last error if all attempts fail
+          }
         }
       }
+    } catch (error) {
+      console.error('Error generating response from Gemini:', error);
+      res.status(500).json({ success: false, message: 'Failed to generate response from Gemini' });
     }
 
     // Save bot message to DB

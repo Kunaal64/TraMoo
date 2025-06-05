@@ -58,7 +58,7 @@ const BlogCard: React.FC<BlogCardProps> = ({
   }, [images]);
 
   const getFullImageUrl = (path) => {
-    if (!path) return '/placeholder-image.png';
+    if (!path) return '/images/placeholder.svg';
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
@@ -69,7 +69,7 @@ const BlogCard: React.FC<BlogCardProps> = ({
     ? getFullImageUrl(images[currentImageIndex]) 
     : image 
       ? getFullImageUrl(image) 
-      : '/placeholder-image.png';
+      : '/images/placeholder.svg';
 
   return (
     <motion.article

@@ -63,7 +63,7 @@ const WritersCorner = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const getFullImageUrl = (path) => {
-    if (!path) return '/placeholder-image.png';
+    if (!path) return '/images/placeholder.svg';
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
