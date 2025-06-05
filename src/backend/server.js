@@ -66,6 +66,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
 
+// Temporarily log the VITE_FRONTEND_URL to debug CORS issue
+console.log('Backend VITE_FRONTEND_URL:', process.env.VITE_FRONTEND_URL);
+
 // Validate required environment variables
 const requiredEnvVars = ['GEMINI_API_KEY', 'JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
