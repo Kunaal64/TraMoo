@@ -139,43 +139,112 @@ const allowedOrigins = [
   'http://localhost:5000',
   'http://localhost:8081',
   'https://tramoo-navy.vercel.app',
-  'https://tramoo-navy.vercel.app/',
-  process.env.VITE_BACKEND_URL,
-  process.env.VITE_FRONTEND_URL
-].filter(Boolean);
+  'https://tramoo-navy.vercel.app/'
+];
 
+// Add environment variables if they exist
+if (process.env.VITE_BACKEND_URL) {
+  allowedOrigins.push(process.env.VITE_BACKEND_URL);
+}
+if (process.env.VITE_FRONTEND_URL) {
+  allowedOrigins.push(process.env.VITE_FRONTEND_URL);
+}
+
+// Remove duplicates and undefined values
+const uniqueOrigins = [...new Set(allowedOrigins.filter(Boolean))];
+
+// Configure CORS with enhanced options
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (like mobile apps, curl, etc)
     if (!origin) return callback(null, true);
     
-    // Check if the origin is allowed
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    // Check if origin is allowed
+    if (uniqueOrigins.includes(origin) || 
+        uniqueOrigins.some(allowed => origin.startsWith(allowed.replace(/\/+$/, '')))) {
+      return callback(null, true);
     }
-    return callback(null, true);
+    
+    console.log('CORS blocked for origin:', origin);
+    return callback(new Error('Not allowed by CORS'), false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Allow-Headers'
+  ],
   credentials: true,
   preflightContinue: false,
   optionsSuccessStatus: 204,
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
+  exposedHeaders: [
+    'Content-Range', 
+    'X-Content-Range',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Credentials'
+  ]
 };
 
-// CORS Middleware with logging
+// Single CORS middleware with enhanced logging and handling
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const requestHeaders = req.headers['access-control-request-headers'];
+  
+  // Log CORS-related information
+  console.log('=== CORS Debug ===');
   console.log('Request Origin:', origin);
-  console.log('Allowed Origins:', allowedOrigins);
   console.log('Request Method:', req.method);
   console.log('Request Headers:', req.headers);
-  next();
+  
+  // Check if origin is allowed
+  const isOriginAllowed = origin && uniqueOrigins.some(o => {
+    const cleanOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+    const cleanAllowed = o.endsWith('/') ? o.slice(0, -1) : o;
+    return cleanOrigin === cleanAllowed;
+  });
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight request');
+    
+    if (isOriginAllowed) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+      res.header('Access-Control-Allow-Headers', requestHeaders || 'Content-Type, Authorization, X-Requested-With');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Max-Age', '86400'); // 24 hours
+      
+      console.log('Sending 204 for OPTIONS');
+      return res.status(204).end();
+    } else {
+      console.log('Origin not allowed for OPTIONS:', origin);
+      return res.status(403).json({ error: 'Not allowed by CORS' });
+    }
+  }
+  
+  // For non-preflight requests
+  if (isOriginAllowed) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    // Add Vary header to avoid caching issues
+    res.vary('Origin');
+    
+    // Add security headers
+    res.header('X-Content-Type-Options', 'nosniff');
+    res.header('X-Frame-Options', 'DENY');
+    res.header('X-XSS-Protection', '1; mode=block');
+    
+    console.log('Proceeding to next middleware');
+    next();
+  } else {
+    console.log('Origin not allowed:', origin);
+    res.status(403).json({ error: 'Not allowed by CORS' });
+  }
 });
-
-// Apply CORS with options
-app.use(cors(corsOptions));
 
 // Other middleware
 app.use(express.json());
