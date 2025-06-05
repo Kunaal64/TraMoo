@@ -147,6 +147,10 @@ const protect = (req, res, next) => {
 
 // CORS configuration
 const allowedOrigins = [
+  // Production
+  'https://your-vercel-app.vercel.app',
+  'https://your-render-backend.onrender.com',
+  // Development
   'http://localhost:8080',
   'http://localhost:3000',
   'http://localhost:5000',
