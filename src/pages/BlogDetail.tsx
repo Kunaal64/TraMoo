@@ -184,7 +184,7 @@ const BlogDetail = () => {
     return <div className="min-h-screen flex items-center justify-center text-red-500">Error: Blog post not found.</div>;
   }
 
-  const isLikedByUser = user && Array.isArray(blog.likes) && blog.likes.includes(user.id);
+  const isLikedByUser = user && Array.isArray(blog.likes) && blog.likes.includes(user._id);
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -296,7 +296,7 @@ const BlogDetail = () => {
                         </p>
                       </div>
                       <p className="text-foreground mt-1">{comment.content}</p>
-                      {user && user.id === comment.author?._id && (
+                      {user && user._id === comment.author?._id && (
                         <Button
                           variant="ghost"
                           size="sm"
