@@ -997,10 +997,31 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
         const genAI = new GoogleGenerativeAI(googleApiKey);
         
         // Fetch recent chat history for context (last 5 messages excluding current one)
-        const chatHistory = await ChatMessage.find({ chatSessionId })
+        let chatHistory = await ChatMessage.find({ chatSessionId })
           .sort({ timestamp: 1 })
           .limit(5); // Limit to last 5 messages for context
 
+        // Ensure we have at least one user message in the history
+        if (chatHistory.length === 0 || chatHistory.every(msg => msg.sender !== 'user')) {
+          // If no user messages in history, add the current user message as the first one
+          chatHistory = [{
+            sender: 'user',
+            message: message,
+            timestamp: new Date()
+          }];
+        } else {
+          // Ensure the first message is from the user
+          if (chatHistory[0].sender !== 'user') {
+            // Find the first user message and move it to the beginning
+            const userMsgIndex = chatHistory.findIndex(msg => msg.sender === 'user');
+            if (userMsgIndex > 0) {
+              const [userMsg] = chatHistory.splice(userMsgIndex, 1);
+              chatHistory.unshift(userMsg);
+            }
+          }
+        }
+
+        // Format history for Gemini API
         const formattedHistory = chatHistory.map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'model',
           parts: [{ text: msg.message }],
