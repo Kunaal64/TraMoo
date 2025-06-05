@@ -15,7 +15,6 @@ const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const helmet = require('helmet');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Load environment variables
 dotenv.config();
@@ -29,7 +28,8 @@ app.set('trust proxy', 1);
 // Make Google Generative AI optional
 let GoogleGenerativeAI;
 try {
-  GoogleGenerativeAI = require('@google/generative-ai').GoogleGenerativeAI;
+  const { GoogleGenerativeAI: GoogleAI } = require('@google/generative-ai');
+  GoogleGenerativeAI = GoogleAI;
   console.log('Google Generative AI initialized successfully');
 } catch (error) {
   console.warn('Google Generative AI not available:', error.message);
