@@ -23,6 +23,19 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust first proxy
+app.set('trust proxy', 1);
+
+// Make Google Generative AI optional
+let GoogleGenerativeAI;
+try {
+  GoogleGenerativeAI = require('@google/generative-ai').GoogleGenerativeAI;
+  console.log('Google Generative AI initialized successfully');
+} catch (error) {
+  console.warn('Google Generative AI not available:', error.message);
+  console.warn('AI features will be disabled');
+}
+
 // Simple in-memory cache
 const responseCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
@@ -171,9 +184,16 @@ if (!fs.existsSync(uploadsDir)) {
 // Apply rate limiting to all requests
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Increased limit for development
-  message: 'Too many requests from this IP, please try again after 15 minutes'
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  keyGenerator: (req) => {
+    // Use the client's IP address, considering the X-Forwarded-For header
+    return req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  }
 });
+
 app.use(limiter);
 
 // MongoDB Connection
