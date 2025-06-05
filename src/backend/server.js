@@ -805,8 +805,21 @@ app.get('/api/chat/history/:chatSessionId', protect, cacheMiddleware, async (req
     }
     
     console.log(`Fetching chat history for session: ${chatSessionId}`);
-    const messages = await ChatMessage.find({ chatSessionId }).sort({ timestamp: 1 });
+    let messages = await ChatMessage.find({ chatSessionId }).sort({ timestamp: 1 });
     
+    // If no messages found, and it's a new session, create a welcome message
+    if (messages.length === 0) {
+      const welcomeMessageText = "Hello there! I'm your travel assistant. How can I help you plan your next adventure?";
+      const newWelcomeMessage = new ChatMessage({
+        chatSessionId,
+        sender: 'bot',
+        message: welcomeMessageText,
+        timestamp: new Date(),
+      });
+      await newWelcomeMessage.save();
+      messages = [newWelcomeMessage]; // Set messages to contain only the welcome message
+    }
+
     // Format the response to match expected frontend format
     const formattedMessages = messages.map(msg => ({
       _id: msg._id,
