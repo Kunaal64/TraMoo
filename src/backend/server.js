@@ -133,25 +133,53 @@ const protect = (req, res, next) => {
 };
 
 // CORS Configuration
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://localhost:8081',
+  'https://tramoo-navy.vercel.app',
+  'https://tramoo-navy.vercel.app/',
+  process.env.VITE_BACKEND_URL,
+  process.env.VITE_FRONTEND_URL
+].filter(Boolean);
+
 const corsOptions = {
-  origin: [
-    'http://localhost:8080',
-    'http://localhost:3000',
-    'http://localhost:5000',
-    'http://localhost:8081',
-    process.env.VITE_BACKEND_URL,
-    process.env.VITE_FRONTEND_URL
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if the origin is allowed
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
   preflightContinue: false,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 204,
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 };
 
-// Middleware
+// CORS Middleware with logging
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  console.log('Request Origin:', origin);
+  console.log('Allowed Origins:', allowedOrigins);
+  console.log('Request Method:', req.method);
+  console.log('Request Headers:', req.headers);
+  next();
+});
+
+// Apply CORS with options
 app.use(cors(corsOptions));
+
+// Other middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, '../../public')));
 // app.use(morgan('dev')); // Removed this line to prevent general request logging
