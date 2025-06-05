@@ -1,10 +1,12 @@
 // API Configuration for MongoDB Atlas integration
 // This will contain all API calls and configurations
 
-// Ensure the backend URL ends with a single slash
+// Ensure the backend URL is properly formatted
 const cleanBackendUrl = (url: string): string => {
   // Remove any trailing slashes and whitespace
-  const cleanUrl = url.trim().replace(/\/+$/, '');
+  let cleanUrl = url.trim().replace(/\/+$/, '');
+  // Remove /api if it's at the end to prevent double /api
+  cleanUrl = cleanUrl.replace(/\/api$/, '');
   return cleanUrl + '/';
 };
 

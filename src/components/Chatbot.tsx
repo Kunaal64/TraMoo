@@ -330,7 +330,11 @@ const Chatbot = () => {
 
     try {
       const response = await apiService.sendChatMessage(newMessageText, chatSessionId);
-      const botResponseText = response.messages[1]?.text || 'No response from bot.';
+      // The response should contain an array of messages, where the last one is the bot's response
+      const botMessages = response.messages.filter((m: { type: string; }) => m.type === 'bot');
+      const botResponseText = botMessages.length > 0 
+        ? botMessages[botMessages.length - 1].text 
+        : 'I apologize, but I encountered an issue processing your request.';
 
       // Get current date for bot message timestamp
       const botMessageTime = dayjs();

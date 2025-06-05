@@ -106,8 +106,21 @@ try {
   process.exit(1);
 }
 
-// Initialize Google OAuth2Client
-const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
+// Initialize Google OAuth2 client
+if (!process.env.GOOGLE_CLIENT_ID) {
+  console.error('GOOGLE_CLIENT_ID is not set in environment variables');
+  process.exit(1);
+}
+
+const client = new OAuth2Client({
+  clientId: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  redirectUri: process.env.GOOGLE_REDIRECT_URI || 'postmessage' // Default to postmessage for token exchange
+});
+
+console.log('Google OAuth client initialized with client ID:', 
+  process.env.GOOGLE_CLIENT_ID ? 
+  `${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...` : 'Not set');
 
 // Helper to generate JWT
 const generateToken = (id) => {
@@ -132,91 +145,62 @@ const protect = (req, res, next) => {
   }
 };
 
-// CORS Configuration
+// CORS configuration
 const allowedOrigins = [
   'http://localhost:8080',
   'http://localhost:3000',
   'http://localhost:5000',
-  'http://localhost:8081',
-  'https://tramoo-navy.vercel.app',
-  'https://tramoo-navy.vercel.app',
-  'https://tramoo-vw28.onrender.com',
-  'https://tramoo-vw28.onrender.com/'
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000'
 ];
 
-// Add environment variables if they exist
-const envUrls = [
-  process.env.VITE_BACKEND_URL,
-  process.env.VITE_FRONTEND_URL,
-  process.env.FRONTEND_URL,
-  process.env.BACKEND_URL
-].filter(Boolean);
-
-// Add environment URLs to allowed origins
-envUrls.forEach(url => {
-  if (url && !allowedOrigins.includes(url)) {
-    allowedOrigins.push(url);
-    // Also add URL without trailing slash
-    const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-    if (cleanUrl !== url && !allowedOrigins.includes(cleanUrl)) {
-      allowedOrigins.push(cleanUrl);
+// Add any additional origins from environment variables
+const frontendUrl = process.env.VITE_FRONTEND_URL || 'http://localhost:8080';
+if (frontendUrl) {
+  try {
+    const url = new URL(frontendUrl);
+    if (!allowedOrigins.includes(url.origin)) {
+      allowedOrigins.push(url.origin);
     }
+  } catch (e) {
+    console.error('Invalid VITE_FRONTEND_URL:', e.message);
   }
-});
+}
 
-// Remove duplicates and undefined values
-const uniqueOrigins = [...new Set(allowedOrigins.filter(Boolean))];
+console.log('Allowed CORS origins:', allowedOrigins);
 
-console.log('Allowed CORS origins:', JSON.stringify(uniqueOrigins, null, 2));
-
-// Configure CORS with enhanced options
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc)
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log('No origin header present, allowing request');
+      console.log('No origin - allowing request');
       return callback(null, true);
     }
     
-    // Normalize the origin by removing trailing slashes
-    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+    console.log('Checking origin:', origin);
     
-    // Check if origin is allowed
-    const isAllowed = uniqueOrigins.some(allowed => {
-      const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
-      return normalizedOrigin === normalizedAllowed || 
-             normalizedOrigin.startsWith(normalizedAllowed);
+    // Check if the origin is in the allowed list
+    const isAllowed = allowedOrigins.some(allowed => {
+      return origin === allowed || 
+             origin.startsWith(allowed.replace(/\/+$/, ''));
     });
     
     if (isAllowed) {
+      console.log('Origin allowed:', origin);
       return callback(null, true);
+    } else {
+      console.log('Origin not allowed:', origin);
+      return callback(new Error(`Not allowed by CORS. Origin: ${origin}, Allowed: ${allowedOrigins.join(', ')}`), false);
     }
-    
-    console.log('CORS blocked for origin:', origin);
-    console.log('Allowed origins:', uniqueOrigins);
-    return callback(new Error(`Not allowed by CORS. Origin: ${origin}`), false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With',
-    'Accept',
-    'Origin',
-    'Access-Control-Allow-Headers'
-  ],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Access-Control-Allow-Headers'],
   credentials: true,
-  preflightContinue: false,
-  optionsSuccessStatus: 204,
-  exposedHeaders: [
-    'Content-Range', 
-    'X-Content-Range',
-    'Access-Control-Allow-Origin',
-    'Access-Control-Allow-Credentials'
-  ]
+  optionsSuccessStatus: 200,
+  preflightContinue: true
 };
-
-// Single CORS middleware with enhanced logging and handling
+// CORS middleware with enhanced logging and handling
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const requestHeaders = req.headers['access-control-request-headers'];
@@ -225,53 +209,50 @@ app.use((req, res, next) => {
   console.log('=== CORS Debug ===');
   console.log('Request Origin:', origin);
   console.log('Request Method:', req.method);
-  console.log('Request Headers:', req.headers);
-  
-  // Check if origin is allowed
-  const isOriginAllowed = origin && uniqueOrigins.some(o => {
-    const cleanOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-    const cleanAllowed = o.endsWith('/') ? o.slice(0, -1) : o;
-    return cleanOrigin === cleanAllowed;
-  });
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling OPTIONS preflight request');
     
-    if (isOriginAllowed) {
-      res.header('Access-Control-Allow-Origin', origin);
-      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-      res.header('Access-Control-Allow-Headers', requestHeaders || 'Content-Type, Authorization, X-Requested-With');
-      res.header('Access-Control-Allow-Credentials', 'true');
-      res.header('Access-Control-Max-Age', '86400'); // 24 hours
-      
-      console.log('Sending 204 for OPTIONS');
-      return res.status(204).end();
-    } else {
-      console.log('Origin not allowed for OPTIONS:', origin);
-      return res.status(403).json({ error: 'Not allowed by CORS' });
+    // Check if origin is allowed
+    if (origin && !allowedOrigins.some(o => origin === o || origin.startsWith(o.replace(/\/+$/, '')))) {
+      console.log('CORS blocked for origin (preflight):', origin);
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Not allowed by CORS',
+        allowedOrigins: allowedOrigins 
+      });
     }
+    
+    // Set preflight response headers
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', requestHeaders || 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+    
+    console.log('Sending 204 for OPTIONS');
+    return res.status(204).send();
   }
   
-  // For non-preflight requests
-  if (isOriginAllowed) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    
-    // Add Vary header to avoid caching issues
-    res.vary('Origin');
-    
-    // Add security headers
-    res.header('X-Content-Type-Options', 'nosniff');
-    res.header('X-Frame-Options', 'DENY');
-    res.header('X-XSS-Protection', '1; mode=block');
-    
-    console.log('Proceeding to next middleware');
-    next();
-  } else {
-    console.log('Origin not allowed:', origin);
-    res.status(403).json({ error: 'Not allowed by CORS' });
+  // Allow requests with no origin (like mobile apps or curl requests)
+  if (!origin) {
+    console.log('No origin - allowing request');
+    return next();
   }
+  
+  // Set CORS headers for actual requests
+  res.header('Access-Control-Allow-Origin', origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.vary('Origin');
+  
+  // Add security headers
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('X-Frame-Options', 'DENY');
+  res.header('X-XSS-Protection', '1; mode=block');
+  
+  console.log('Proceeding to next middleware');
+  next();
 });
 
 // Other middleware
@@ -460,87 +441,173 @@ app.post('/api/auth/login', async (req, res) => {
 
 // Google OAuth Login Route
 app.post('/api/auth/google', async (req, res) => {
-  const { code } = req.body;
-  
-  if (!code) {
-    console.error('No authorization code provided');
-    return res.status(400).json({ message: 'Authorization code is required' });
+  const { credential } = req.body;
+
+  console.log('Google auth request received:', { 
+    hasCredential: !!credential,
+    credentialLength: credential ? credential.length : 0
+  });
+
+  if (!credential) {
+    console.error('No credential provided in request body');
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Google credential is required',
+      code: 'MISSING_CREDENTIAL'
+    });
   }
+  
+  // Log the first 50 chars of the credential for debugging (don't log the whole thing for security)
+  console.log('Credential received (first 50 chars):', credential.substring(0, 50) + '...');
 
   try {
-    console.log('Exchanging authorization code for tokens...');
-    const { tokens } = await client.getToken({
-      code,
-      redirect_uri: GOOGLE_REDIRECT_URI
-    });
+    console.log('Verifying Google ID token...');
     
-    if (!tokens.id_token) {
-      throw new Error('No ID token in the response');
-    }
-
-    console.log('Verifying ID token...');
+    // Verify the ID token from the credential
     const ticket = await client.verifyIdToken({
-      idToken: tokens.id_token,
-      audience: GOOGLE_CLIENT_ID,
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    }).catch(error => {
+      console.error('Error verifying Google ID token:', error.message);
+      throw new Error('Invalid Google credential');
     });
-    
+
+    // Get the user's Google profile
     const payload = ticket.getPayload();
-    console.log('Google user authenticated:', payload.email);
-
-    if (!payload.email_verified) {
-      return res.status(403).json({ message: 'Google account email not verified' });
-    }
-
-    let user = await User.findOne({ email: payload.email });
-
-    if (!user) {
-      console.log('Creating new user for Google account:', payload.email);
-      // Create new user if not exists
-      user = new User({
-        name: payload.name,
-        email: payload.email,
-        avatar: payload.picture,
-        password: crypto.randomBytes(16).toString('hex'), // More secure random password
-        isGoogleUser: true,
-      });
-      await user.save();
-      console.log('New Google user created:', user.email);
-    } else if (!user.isGoogleUser) {
-      console.log('Email already registered with non-Google account:', payload.email);
-      // If a user with this email exists but is not a Google user, return an error
-      return res.status(409).json({ 
-        message: 'An account with this email already exists. Please sign in using your password.', 
-        code: 'EMAIL_ALREADY_EXISTS_NON_GOOGLE' 
-      });
-    }
-
-    const token = generateToken(user.id);
-    console.log(`Google user logged in: ${user.name} (${user.email})`);
     
-    res.status(200).json({ 
-      user: { 
-        id: user.id, 
-        name: user.name, 
-        email: user.email,
-        avatar: user.avatar
-      }, 
-      token 
-    });
-    
-  } catch (error) {
-    console.error('Google authentication error:', error.message);
-    console.error('Error stack:', error.stack);
-    
-    if (error.message.includes('invalid_grant')) {
+    if (!payload) {
+      console.error('No payload received from Google');
       return res.status(400).json({ 
-        message: 'Invalid authorization code. Please try signing in again.',
-        code: 'INVALID_AUTH_CODE'
+        success: false, 
+        message: 'Invalid Google credential',
+        code: 'INVALID_CREDENTIAL'
       });
     }
     
-    res.status(500).json({ 
-      message: 'Google authentication failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    if (!payload.email) {
+      console.error('No email found in Google account payload');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No email found in Google account',
+        code: 'NO_EMAIL_IN_PROFILE'
+      });
+    }
+    
+    console.log('Google auth successful for email:', payload.email);
+    console.log('Google user details:', {
+      name: payload.name,
+      email: payload.email,
+      email_verified: payload.email_verified,
+      picture: payload.picture ? 'has picture' : 'no picture'
+    });
+
+    // Find or create user in a transaction to prevent race conditions
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
+    try {
+      let user = await User.findOne({ email: payload.email }).session(session);
+      let isNewUser = false;
+      
+      if (!user) {
+        // Create new user
+        user = new User({
+          name: payload.name || payload.email.split('@')[0],
+          email: payload.email,
+          password: crypto.randomBytes(20).toString('hex'), // Random password for Google users
+          isGoogleUser: true,
+          profilePicture: payload.picture,
+          emailVerified: payload.email_verified || false
+        });
+        
+        await user.save({ session });
+        isNewUser = true;
+        console.log('New user created for Google login:', user.email);
+      } else if (!user.isGoogleUser) {
+        // User exists but not as Google user
+        await session.abortTransaction();
+        session.endSession();
+        
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this email already exists. Please sign in using your password.',
+          code: 'EMAIL_EXISTS_WITH_PASSWORD'
+        });
+      }
+      
+      // Generate JWT token
+      const token = generateToken(user._id);
+
+      // Prepare user data for response
+      const userData = {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isGoogleUser: user.isGoogleUser,
+        profilePicture: user.profilePicture,
+        emailVerified: user.emailVerified
+      };
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+      
+      console.log('Sending success response for user:', userData.email);
+      console.log(isNewUser ? 'New user registered' : 'Existing user logged in');
+
+      // Return user data and token in the format expected by the frontend
+      res.status(200).json({
+        success: true,
+        token,
+        user: userData,
+        isNewUser
+      });
+      
+      console.log(`Google user logged in: ${user.name} (${user.email})`);
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      console.error('Error in Google auth transaction:', error);
+      throw error; // This will be caught by the outer try-catch
+    }
+  } catch (error) {
+    console.error('Google authentication error:', error);
+    
+    let errorMessage = 'Google authentication failed';
+    let statusCode = 500;
+    let errorCode = 'AUTH_ERROR';
+    
+    if (error.message.includes('Invalid token') || error.message.includes('Invalid Google credential')) {
+      errorMessage = 'Invalid Google token';
+      statusCode = 400;
+      errorCode = 'INVALID_TOKEN';
+    } else if (error.message.includes('Token used too late')) {
+      errorMessage = 'Expired Google token';
+      statusCode = 400;
+      errorCode = 'TOKEN_EXPIRED';
+    } else if (error.message.includes('No credential provided')) {
+      errorMessage = 'No Google credential provided';
+      statusCode = 400;
+      errorCode = 'MISSING_CREDENTIAL';
+    } else if (error.message.includes('No email found')) {
+      errorMessage = 'No email found in Google profile';
+      statusCode = 400;
+      errorCode = 'NO_EMAIL_IN_PROFILE';
+    } else if (error.code === 11000) {
+      // MongoDB duplicate key error (email already exists)
+      errorMessage = 'An account with this email already exists';
+      statusCode = 409;
+      errorCode = 'DUPLICATE_EMAIL';
+    }
+    
+    res.status(statusCode).json({
+      success: false,
+      message: errorMessage,
+      code: errorCode,
+      ...(process.env.NODE_ENV === 'development' && {
+        error: error.message,
+        stack: error.stack
+      })
     });
   }
 });
@@ -1064,40 +1131,30 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
     }
 
     // Check if Google AI API key is configured
-    const googleApiKey = process.env.GOOGLE_AI_API_KEY;
-      if (!googleApiKey) {
-        console.error('Google AI API key is not configured');
-        throw new Error('AI service is not properly configured');
-      }
+    const googleApiKey = process.env.GEMINI_API_KEY;
+    let geminiResponseText = 'I appreciate your message! Currently, I\'m experiencing high demand or technical difficulties. Please try again later or contact support if the issue persists.';
 
-      // Initialize Google AI
+    if (googleApiKey) {
       try {
         const genAI = new GoogleGenerativeAI(googleApiKey);
         
-        // Fetch recent chat history for context (last 5 messages excluding current one)
-        let chatHistory = await ChatMessage.find({ chatSessionId })
-          .sort({ timestamp: 1 })
-          .limit(5); // Limit to last 5 messages for context
-
-        // Ensure we have at least one user message in the history
-        if (chatHistory.length === 0 || chatHistory.every(msg => msg.sender !== 'user')) {
-          // If no user messages in history, add the current user message as the first one
-          chatHistory = [{
-            sender: 'user',
-            message: message,
-            timestamp: new Date()
-          }];
-        } else {
-          // Ensure the first message is from the user
-          if (chatHistory[0].sender !== 'user') {
-            // Find the first user message and move it to the beginning
-            const userMsgIndex = chatHistory.findIndex(msg => msg.sender === 'user');
-            if (userMsgIndex > 0) {
-              const [userMsg] = chatHistory.splice(userMsgIndex, 1);
-              chatHistory.unshift(userMsg);
-            }
-          }
+        // Simple rate limiting - only process one request at a time
+        const currentTime = Date.now();
+        const lastRequestTime = global.lastGeminiRequestTime || 0;
+        const timeSinceLastRequest = currentTime - lastRequestTime;
+        
+        // Enforce minimum 2 seconds between requests to avoid rate limiting
+        if (timeSinceLastRequest < 2000) {
+          await new Promise(resolve => setTimeout(resolve, 2000 - timeSinceLastRequest));
         }
+        
+        global.lastGeminiRequestTime = Date.now();
+        
+        // Fetch recent chat history for context (last 3 messages to reduce tokens)
+        const chatHistory = await ChatMessage.find({ chatSessionId })
+          .sort({ timestamp: -1 }) // Get most recent first
+          .limit(3)
+          .sort({ timestamp: 1 }); // Then sort back to chronological order
 
         // Format history for Gemini API
         const formattedHistory = chatHistory.map(msg => ({
@@ -1105,65 +1162,61 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
           parts: [{ text: msg.message }],
         }));
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        // Use the stable Gemini Pro model
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-pro",
+          generationConfig: {
+            maxOutputTokens: 300, // Reduce token usage
+            temperature: 0.7,
+          },
+        });
 
-        let attempt = 0;
-        const maxAttempts = 3;
-        let geminiResponseText = 'I apologize, but I am currently experiencing technical difficulties. Please try again later.';
-
-        while (attempt < maxAttempts) {
-          try {
-            const chat = model.startChat({
-              history: formattedHistory,
-              generationConfig: {
-                maxOutputTokens: 500,
-                temperature: 0.7,
-                topP: 0.9,
-                topK: 40,
-              },
-            });
-            
-            const result = await chat.sendMessage(message);
-            geminiResponseText = result.response.text();
-            break; // Exit loop if successful
-          } catch (geminiError) {
-            console.error(`Gemini API Error on attempt ${attempt + 1}:`, geminiError);
-            attempt++;
-            if (attempt < maxAttempts) {
-              // Wait before retrying (exponential backoff)
-              await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
-            } else {
-              console.error('Max retry attempts reached');
-              // Instead of throwing, we'll return a friendly error message
-              geminiResponseText = 'I\'m sorry, but I\'m having trouble connecting to the AI service right now. Please try again later.';
+        const result = await model.generateContent({
+          contents: [
+            ...formattedHistory,
+            { 
+              role: 'user', 
+              parts: [{ 
+                text: `(Please keep your response under 150 words) ${message}`
+              }]
             }
-          }
-        }
-
-        
-        // Save bot message to DB
-        const botMessage = new ChatMessage({
-          chatSessionId,
-          sender: 'bot',
-          message: geminiResponseText,
-          timestamp: new Date(),
+          ]
         });
-        await botMessage.save();
         
-        return res.status(200).json({
-          success: true,
-          message: 'Message processed successfully',
-          response: botMessage
-        });
+        const response = await result.response;
+        geminiResponseText = response.text();
         
       } catch (error) {
-        console.error('Error initializing Google AI:', error);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to initialize AI service',
-          error: error.message
-        });
+        console.error('Error generating AI response:', error);
+        // Use the default response if there's an error
       }
+    }
+    
+    // Save bot message to DB
+    const botMessage = new ChatMessage({
+      chatSessionId,
+      sender: 'bot',
+      message: geminiResponseText,
+      timestamp: new Date(),
+    });
+    
+    try {
+      await botMessage.save();
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Message processed successfully',
+        response: botMessage
+      });
+      
+    } catch (error) {
+      console.error('Error saving bot message:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save chat message',
+        error: error.message
+      });
+    }
   } catch (error) {
     console.error('Error in chat endpoint:', error);
     // If we get here, it's an unexpected error - send a generic error response

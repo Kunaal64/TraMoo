@@ -6,20 +6,41 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { GoogleLogin, CredentialResponse, useGoogleLogin, TokenResponse } from '@react-oauth/google';
+import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { apiService } from '@/utils/api';
 import { TOAST_REMOVE_DELAY } from '@/hooks/use-toast';
 
+interface GoogleAuthResponse {
+  success: boolean;
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    isGoogleUser: boolean;
+    profilePicture?: string;
+  };
+}
+
+interface FormData {
+  name: string;
+  email: string;
+  password: string;
+}
+
 const Login = () => {
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [formData, setFormData] = useState<FormData>({ 
+    name: '', 
+    email: '', 
+    password: '' 
+  });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const { login: authLogin, googleLogin } = useAuth();
-
   const from = location.state?.from?.pathname || '/';
 
   interface GoogleAuthResponse {
@@ -32,32 +53,68 @@ const Login = () => {
     status?: number;
   }
 
-  const handleGoogleAuth = async (codeResponse) => {
-    if (codeResponse.code) {
-      try {
-        const response = await apiService.request<GoogleAuthResponse>('/auth/google', {
-          method: 'POST',
-          body: JSON.stringify({
-            code: codeResponse.code,
-          })
+  const handleGoogleAuth = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      toast({
+        title: 'Error',
+        description: 'Failed to get Google credentials. Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Send the credential to our backend for verification
+      const response = await apiService.request<GoogleAuthResponse>('/auth/google', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          credential: credentialResponse.credential,
+        })
+      });
+      
+      if (response && response.token && response.user) {
+        // Ensure required user fields are present
+        const userData = {
+          ...response.user,
+          _id: response.user.id, // Map id to _id for the User type
+          name: response.user.name || response.user.email.split('@')[0], // Ensure name is always defined
+          email: response.user.email,
+          isGoogleUser: true
+        };
+
+        // Use the auth context to handle the login
+        googleLogin({ 
+          user: userData, 
+          token: response.token 
         });
-        const { token, user } = response;
-        googleLogin({ user, token });
+        
         toast({
           title: 'Login Successful',
           description: 'You have successfully logged in with Google!',
+          duration: TOAST_REMOVE_DELAY,
         });
-        navigate('/');
-      } catch (error) {
-        const errorMessage = apiService.isAxiosError(error) && error.response?.data?.message 
-          ? error.response.data.message 
-          : 'Google login failed.';
-        toast({
-          title: 'Error',
-          description: errorMessage,
-          variant: 'destructive',
-        });
+        
+        // Redirect to the home page or the page the user was trying to access
+        navigate(from, { replace: true });
+      } else {
+        throw new Error('Invalid response from server');
       }
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      const errorMessage = error.response?.data?.message || 'Google login failed. Please try again.';
+
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -84,6 +141,9 @@ const Login = () => {
         isLogin ? '/auth/login' : '/auth/register',
         {
           method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify(credentials),
         }
       );
@@ -241,22 +301,29 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="text-center">
-            <div className="w-full flex justify-center">
-              <Button
-                type="button"
-                onClick={() => handleGoogleAuth({ code: '' })}
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 text-white dark:text-black hover:from-slate-800 hover:to-slate-600 dark:hover:from-slate-200 dark:hover:to-slate-400 transition-colors duration-200 rounded-xl py-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M22.675 12.001c0-.783-.069-1.54-.188-2.274H12v4.305h6.294c-.266 1.4-1.096 2.583-2.316 3.424v2.795h3.585c2.096-1.93 3.307-4.757 3.307-8.25z" fill="#4285F4"/>
-                  <path d="M12 24c3.243 0 5.962-1.072 7.949-2.915l-3.585-2.795c-.996.671-2.27 1.066-3.905 1.066-3.003 0-5.556-2.023-6.467-4.754H1.996v2.887C3.993 22.096 7.625 24 12 24z" fill="#34A853"/>
-                  <path d="M5.533 14.288c-.234-.672-.366-1.39-.366-2.095s.132-1.423.366-2.095V7.291H1.996c-.732 1.465-1.156 3.14-1.156 4.693s.424 3.228 1.156 4.693L5.533 14.288z" fill="#FBBC04"/>
-                  <path d="M12 4.73c1.761 0 3.342.607 4.587 1.776l3.18-3.18C17.962 1.072 15.243 0 12 0c-4.375 0-8.007 1.904-10.004 4.81L5.533 7.705c.911-2.731 3.464-4.754 6.467-4.754z" fill="#EA4335"/>
-                </svg>
-                Continue with Google
-              </Button>
+          <div className="text-center w-full">
+            <div className="flex justify-center w-full">
+              <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+                <div className="w-full">
+                  <GoogleLogin
+                    onSuccess={handleGoogleAuth}
+                    onError={() => {
+                      toast({
+                        title: 'Error',
+                        description: 'Google authentication failed. Please try again.',
+                        variant: 'destructive',
+                      });
+                    }}
+                    useOneTap={false}
+                    type="standard"
+                    theme="outline"
+                    shape="rectangular"
+                    text="continue_with"
+                    size="large"
+                    width="100%"
+                  />
+                </div>
+              </GoogleOAuthProvider>
             </div>
           </div>
 
