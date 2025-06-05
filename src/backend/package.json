@@ -1,7 +1,7 @@
 {
-  "name": "wanderlust-backend",
+  "name": "tramoo-backend",
   "version": "1.0.0",
-  "description": "Backend API for Wanderlust Travel Blog",
+  "description": "Backend API for TraMoo Travel Blog",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -35,6 +35,6 @@
     "express",
     "api"
   ],
-  "author": "Wanderlust Team",
+  "author": "TraMoo Team",
   "license": "MIT"
 }

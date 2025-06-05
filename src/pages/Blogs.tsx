@@ -30,14 +30,11 @@ const Blogs = () => {
   }
 
   useEffect(() => {
-    console.log('Blogs.tsx: useEffect triggered for data fetch. Current searchQuery:', searchQuery);
     const fetchAllBlogs = async () => {
       setLoading(true);
       setError(null);
       try {
-        console.log('Blogs.tsx: Calling apiService.getAllBlogs with query:', searchQuery);
         const response = await apiService.getAllBlogs(searchQuery);
-        console.log('Blogs.tsx: API getAllBlogs response:', response);
         setAllBlogs(response || []);
       } catch (err) {
         console.error('Error fetching blogs:', err);
@@ -53,23 +50,20 @@ const Blogs = () => {
     if (searchQuery !== null) { // Depend on searchQuery now
       fetchAllBlogs();
     }
-  }, [searchQuery]); // Depend on searchQuery now
+  }, [searchQuery, toast]); // Depend on searchQuery now
 
   // Scroll to search results section when triggerScrollOnEnter is true
   useEffect(() => {
     if (triggerScrollOnEnter && searchResultsRef.current) {
-      console.log('Blogs.tsx: triggerScrollOnEnter detected. Attempting to scroll to search results.');
       setTimeout(() => {
         const offsetTop = searchResultsRef.current?.offsetTop || 0;
         window.scrollTo({
           top: offsetTop,
           behavior: 'smooth'
         });
-        console.log('Blogs.tsx: Scrolled to offsetTop:', offsetTop);
         setTriggerScrollOnEnter(false); // Reset the trigger
-      }, 100);
+      }, 100); // Small delay to allow DOM to update and element position to be calculated
     } else if (!triggerScrollOnEnter) {
-      console.log('Blogs.tsx: triggerScrollOnEnter is false, not scrolling.');
     }
   }, [triggerScrollOnEnter, setTriggerScrollOnEnter]);
 
@@ -98,7 +92,6 @@ const Blogs = () => {
     }
   };
 
-  console.log('Blogs.tsx: allBlogs before flatMap:', allBlogs);
   const allTags = Array.from(new Set(Array.isArray(allBlogs) ? allBlogs.flatMap(blog => blog.tags || []) : []));
 
   // filteredBlogs will now reflect searchQuery dynamically
@@ -137,7 +130,7 @@ const Blogs = () => {
           />
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="hidden sm:flex items-center space-x-2">
           <button
             onClick={() => setViewMode('grid')}
             className={`p-2 rounded-3xl transition-colors ${

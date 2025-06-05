@@ -1,6 +1,7 @@
 import React from 'react';
-import { MapPin, Heart, Github, Twitter, Instagram } from 'lucide-react';
+import { Compass, Heart, Github, Twitter, Instagram } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Linkedin, Code } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -10,27 +11,16 @@ const Footer = () => {
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
             <Link to="/" className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <MapPin className="text-primary-foreground" size={16} />
+              <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
+                <Compass className="text-primary-foreground" size={18} />
               </div>
-              <span className="text-xl font-bold gradient-text-hero">
-                Wanderlust
+              <span className="text-xl font-bold gradient-text-hero gradient-text-animated">
+                TraMoo
               </span>
             </Link>
             <p className="text-muted-foreground mb-4 max-w-md">
               Share your travel adventures and discover amazing stories from fellow wanderers around the globe.
             </p>
-            <div className="flex space-x-4">
-              <a href="#" className="text-muted-foreground hover:text-orange-500 transition-colors">
-                <Twitter size={20} />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-orange-500 transition-colors">
-                <Instagram size={20} />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-orange-500 transition-colors">
-                <Github size={20} />
-              </a>
-            </div>
           </div>
 
           {/* Quick Links */}
@@ -49,28 +39,36 @@ const Footer = () => {
                   Writer's Corner
                 </Link>
               </li>
+              <li>
+                <Link to="/liked-blogs" className="text-muted-foreground hover:text-orange-500 transition-colors">
+                  Favourites
+                </Link>
+              </li>
             </ul>
           </div>
 
-          {/* Support */}
+          {/* Developer */}
           <div>
             <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
-              Support
+              Developer
             </h3>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-muted-foreground hover:text-orange-500 transition-colors">
-                  Help Center
+                <a href="https://github.com/Kunaal64" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-muted-foreground hover:text-orange-500 transition-colors">
+                  <Github size={20} />
+                  <span>GitHub</span>
                 </a>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-orange-500 transition-colors">
-                  Community
+                <a href="https://www.linkedin.com/in/kunaall/" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-muted-foreground hover:text-orange-500 transition-colors">
+                  <Linkedin size={20} />
+                  <span>Linkedin</span>
                 </a>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-orange-500 transition-colors">
-                  Contact Us
+                <a href="https://portfolio-kaash.vercel.app/" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-muted-foreground hover:text-orange-500 transition-colors">
+                  <Code size={20} />
+                  <span>Portfolio</span>
                 </a>
               </li>
             </ul>
@@ -78,18 +76,10 @@ const Footer = () => {
         </div>
 
         <div className="mt-8 pt-8 border-t border-border">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-muted-foreground text-sm">
-              © 2024 Wanderlust. Made with <Heart className="inline w-4 h-4 text-destructive" /> for travelers.
+          <div className="flex flex-col items-center justify-center">
+            <p className="text-muted-foreground text-sm text-center gradient-text-animated">
+              TraMoo.. Made with <Heart className="inline w-4 h-4 text-destructive" /> by Kaash.
             </p>
-            <div className="flex space-x-6 mt-4 md:mt-0">
-              <a href="#" className="text-muted-foreground hover:text-orange-500 text-sm transition-colors">
-                Privacy Policy
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-orange-500 text-sm transition-colors">
-                Terms of Service
-              </a>
-            </div>
           </div>
         </div>
       </div>

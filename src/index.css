@@ -285,6 +285,10 @@ h1, h2, h3, h4, h5, h6 {
     --glow-blue: 230 5% 2%; /* Very dark, highly desaturated blue */
     --glow-pink: 330 5% 2%; /* Very dark, highly desaturated pink */
   }
+
+  * {
+    @apply border-border;
+  }
 }
 
 html.light {
@@ -434,4 +438,17 @@ html.dark {
   border-radius: 0.25rem;
   font-family: 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
   font-size: 0.875em;
+}
+
+@keyframes slideGradient {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+.gradient-text-animated {
+  background: linear-gradient(45deg, #FFD700, #FFA500);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: slideGradient 3s linear infinite;
 }

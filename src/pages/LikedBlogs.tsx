@@ -79,7 +79,7 @@ const LikedBlogs = () => {
         className="text-center mb-12"
       >
         <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-          My Favorites
+          My Favourites
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
           All the stories you've loved, in one place.
@@ -98,7 +98,7 @@ const LikedBlogs = () => {
             <Heart className="w-12 h-12" />
           </div>
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            No favorites found
+            No favourites found
           </h3>
           <p className="text-muted-foreground mb-6">
             Start exploring stories and hit the heart icon to add them here!
@@ -119,7 +119,7 @@ const LikedBlogs = () => {
             <Heart className="w-12 h-12" />
           </div>
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            Login to see your favorites
+            Login to see your favourites
           </h3>
           <p className="text-muted-foreground mb-6">
             Please log in to view and manage your liked blog posts.
@@ -167,7 +167,7 @@ const LikedBlogs = () => {
             <Heart className="w-12 h-12" />
           </div>
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            Login to see your favorites
+            Login to see your favourites
           </h3>
           <p className="text-muted-foreground mb-6">
             Please log in to view and manage your liked blog posts.

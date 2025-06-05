@@ -32,7 +32,7 @@ const Navbar = () => {
   const navItems = [
     { to: '/', label: 'Home', icon: <Compass size={18} /> },
     { to: '/blogs', label: 'Stories', icon: <BookOpen size={18} /> },
-    { to: '/liked-blogs', label: 'Favorites', icon: <Heart size={18} /> },
+    { to: '/liked-blogs', label: 'Favourites', icon: <Heart size={18} /> },
     { to: '/writers-corner', label: "Writer's Corner", icon: <PenTool size={18} /> },
   ];
 
@@ -96,7 +96,7 @@ const Navbar = () => {
                 <Compass className="text-primary-foreground" size={18} />
               </motion.div>
               <span className="text-xl font-bold gradient-text-hero">
-                Wanderlust
+                TraMoo
               </span>
             </Link>
 
@@ -109,7 +109,7 @@ const Navbar = () => {
                   className={`flex items-center space-x-2 px-3 py-2 rounded-xl transition-all font-medium ${
                     location.pathname === item.to
                       ? 'text-foreground bg-secondary'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      : 'text-muted-foreground hover:text-orange-500'
                   }`}
                 >
                   {item.icon}
@@ -198,10 +198,10 @@ const Navbar = () => {
                   key={item.to}
                   to={item.to}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium ${
+                  className={`flex items-center space-x-2 py-2 rounded-md transition-colors ${
                     location.pathname === item.to
-                      ? 'text-foreground bg-secondary'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-orange-500'
                   }`}
                 >
                   {item.icon}

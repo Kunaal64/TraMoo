@@ -13,7 +13,7 @@ import BlogCard from '../components/BlogCard';
 import { Link } from 'react-router-dom';
 import { apiService } from '../utils/api';
 import { getInitials } from '../utils/helpers';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 
 interface WriterStats {
@@ -154,10 +154,8 @@ const WritersCorner = () => {
   };
 
   const handleImageLinkAdd = () => {
-    console.log('MyStories.tsx: Before adding image, currentBlog.images:', currentBlog.images);
     if (newImageLink.trim() && !currentBlog.images.includes(newImageLink.trim())) {
       setCurrentBlog({ ...currentBlog, images: [...currentBlog.images, newImageLink.trim()] });
-      console.log('MyStories.tsx: After adding image, currentBlog.images:', [...currentBlog.images, newImageLink.trim()]);
       setNewImageLink('');
     }
   };
@@ -187,7 +185,6 @@ const WritersCorner = () => {
         published: isPublished,
         country: currentBlog.country,
       };
-      console.log('MyStories.tsx: Submitting blogData with images:', blogData.images);
 
       if (isEditing) {
         await apiService.updateBlog(currentBlog._id, blogData);
@@ -430,7 +427,7 @@ const WritersCorner = () => {
                       onLikeToggle={handleLikeToggle} 
                     />
                   </Link>
-                  <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute top-2 right-2 flex space-x-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
                     <Button variant="secondary" size="sm" onClick={() => handleEdit(blog)} className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-3xl">
                       <Edit size={16} />
                     </Button>

@@ -105,17 +105,17 @@ const Home = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-6xl md:text-8xl font-bold text-foreground mb-6 gradient-text-hero"
+            className="text-6xl md:text-8xl font-serif text-foreground mb-6 gradient-text-animated tracking-tight"
             style={{ willChange: 'transform, opacity' }}
           >
-            Wanderlust
+            TraMoo.. WanderLust
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl md:text-2xl font-bold text-white dark:text-foreground mb-8 max-w-3xl mx-auto"
+            className="text-xl md:text-2xl text-white dark:text-foreground mb-8 max-w-3xl mx-auto leading-relaxed"
             style={{ willChange: 'transform, opacity' }}
           >
             Discover the world through the eyes of fellow travelers. Share your stories, capture moments, and inspire others to explore.
@@ -132,8 +132,8 @@ const Home = () => {
               asChild
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              <Link to="/blogs">
-                Explore Stories
+              <Link to="/writers-corner">
+                Share Memories
                 <ArrowRight className="ml-2 h-4 w-4 text-primary-foreground" />
               </Link>
             </Button>
@@ -144,7 +144,7 @@ const Home = () => {
               className="border-border text-foreground hover:bg-accent hover:text-accent-foreground"
             >
               <Link to="/blogs">
-                View All Stories
+                Explore Memories
                 <ArrowRight className="ml-2 h-4 w-4 text-foreground" />
               </Link>
             </Button>
@@ -229,7 +229,7 @@ const Home = () => {
 
           {!loading && featuredBlogs.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12 py-4">
-              {featuredBlogs.map((blog, index) => (
+              {featuredBlogs.slice(0, 3).map((blog, index) => (
                 blog._id && (
                   <motion.div
                     key={blog._id}
@@ -240,7 +240,7 @@ const Home = () => {
                     <Link to={`/blogs/${blog._id}`}>
                       <BlogCard 
                         {...blog} 
-                        isLiked={user ? blog.likes.includes(user.id) : false} 
+                        isLiked={user ? blog.likes.includes(user._id) : false} 
                         onLikeToggle={handleLikeToggle} 
                       />
                     </Link>
@@ -249,6 +249,16 @@ const Home = () => {
               ))}
             </div>
           )}
+
+          <div className="text-center mt-8">
+            <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-full text-lg">
+              <Link to="/blogs">
+                View All Stories
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+          </div>
+
         </div>
       </section>
 

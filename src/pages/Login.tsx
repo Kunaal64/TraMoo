@@ -32,130 +32,34 @@ const Login = () => {
     status?: number;
   }
 
-  const handleGoogleSuccess = async (codeResponse: Omit<TokenResponse, "error" | "error_description" | "error_uri">) => {
-    console.log('Google auth code response:', codeResponse);
-    
-    if (!codeResponse.code) {
-      toast({
-        title: 'Authentication Error',
-        description: 'Failed to get authorization code from Google. Please try again.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      // Send the Google authorization code to our backend for verification
-      const response = await apiService.request<GoogleAuthResponse>('/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({
-          code: codeResponse.code,
-        })
-      });
-      
-      if (response.user && response.token) {
-        // Use the googleLogin function from AuthContext
-        googleLogin({ user: response.user, token: response.token });
-        
-        toast({
-          title: 'Success!',
-          description: 'Successfully signed in with Google',
-          variant: 'success',
+  const handleGoogleAuth = async (codeResponse) => {
+    if (codeResponse.code) {
+      try {
+        const response = await apiService.request<GoogleAuthResponse>('/auth/google', {
+          method: 'POST',
+          body: JSON.stringify({
+            code: codeResponse.code,
+          })
         });
-        
-        navigate(from, { replace: true });
-      } else {
-        throw new Error('Authentication failed: Invalid response from server');
-      }
-    } catch (error: unknown) {
-      console.error('Google authentication error:', error);
-      
-      // Type guard to check if error has a response property
-      const hasResponse = (err: any): err is { response: { status: number; data?: any } } => {
-        return err && typeof err === 'object' && 'response' in err;
-      };
-
-      // Type guard to check if error is an Error object
-      const isError = (err: unknown): err is Error => {
-        return err instanceof Error;
-      };
-
-      let errorMessage = 'Failed to sign in with Google. Please try again.';
-      let errorTitle = 'Authentication Error';
-      let showLoginButton = false;
-
-      if (hasResponse(error)) {
-        const errorData = error.response?.data || {};
-        
-        if (error.response.status === 409) {
-          errorTitle = 'Account Exists';
-          
-          if (errorData.code === 'EMAIL_ALREADY_EXISTS_NON_GOOGLE') {
-            errorMessage = 'An account with this email already exists. Please sign in using your password, or link your Google account in your profile settings.';
-            showLoginButton = true;
-          } else {
-            errorMessage = errorData.message || 'An account with this email already exists.';
-          }
-        } else {
-          errorMessage = errorData.message || errorMessage;
-        }
-      } else if (isError(error)) {
-        errorMessage = error.message;
-      }
-
-      if (showLoginButton) {
+        const { token, user } = response;
+        googleLogin({ user, token });
         toast({
-          title: errorTitle,
+          title: 'Login Successful',
+          description: 'You have successfully logged in with Google!',
+        });
+        navigate('/');
+      } catch (error) {
+        const errorMessage = apiService.isAxiosError(error) && error.response?.data?.message 
+          ? error.response.data.message 
+          : 'Google login failed.';
+        toast({
+          title: 'Error',
           description: errorMessage,
           variant: 'destructive',
-          action: (
-            <Button
-              variant="outline"
-              onClick={() => setIsLogin(true)}
-              className="ml-2"
-            >
-              Go to Login
-            </Button>
-          )
-        });
-      } else {
-        toast({
-          title: errorTitle,
-          description: errorMessage,
-          variant: 'destructive'
         });
       }
-    } finally {
-      setIsLoading(false);
     }
   };
-
-  const handleGoogleError = (errorResponse: { error?: string; error_description?: string }) => {
-    console.error('Google login error:', errorResponse);
-    let errorMessage = 'Could not log in with Google. Please try again.';
-
-    if (errorResponse.error === 'popup_closed_by_user') {
-      errorMessage = 'Google login window was closed. Please try again.';
-    } else if (errorResponse.error === 'access_denied') {
-      errorMessage = 'Access denied by Google.';
-    } else if (errorResponse.error_description) {
-      errorMessage = errorResponse.error_description;
-    }
-
-    toast({
-      title: 'Google Login Failed',
-      description: errorMessage,
-      variant: 'destructive',
-    });
-  };
-
-  const handleGoogleLogin = useGoogleLogin({
-    onSuccess: handleGoogleSuccess,
-    onError: (errorResponse) => handleGoogleError(errorResponse as { error?: string; error_description?: string }),
-    flow: 'auth-code',
-  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,8 +102,6 @@ const Login = () => {
         throw new Error('Authentication failed: Invalid response from server');
       }
     } catch (error: any) {
-      console.error('Authentication error:', error);
-      console.log('Full error object from backend:', error.response?.data);
       // Extract more specific error messages from the backend
       let errorMessage = 'Something went wrong. Please try again.';
       if (error.response?.data?.errors && error.response.data.errors.length > 0) {
@@ -343,7 +245,7 @@ const Login = () => {
             <div className="w-full flex justify-center">
               <Button
                 type="button"
-                onClick={() => handleGoogleLogin()}
+                onClick={() => handleGoogleAuth({ code: '' })}
                 disabled={isLoading}
                 className="w-full bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 text-white dark:text-black hover:from-slate-800 hover:to-slate-600 dark:hover:from-slate-200 dark:hover:to-slate-400 transition-colors duration-200 rounded-xl py-2"
               >

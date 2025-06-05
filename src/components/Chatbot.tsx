@@ -98,7 +98,6 @@ const styles = `
 
   .chat-message {
     animation: fadeIn 0.2s ease-out forwards;
-    max-width: 85%;
     display: flex;
     flex-direction: column;
     
@@ -205,7 +204,6 @@ const Chatbot = () => {
 
   // Log the user object to help debug avatar issue
   useEffect(() => {
-    console.log('Current user:', user);
   }, [user]);
 
   const getChatSessionId = () => {
@@ -258,7 +256,6 @@ const Chatbot = () => {
           
           setMessages(formattedMessages);
           setShowWelcomeMessage(history.length === 0);
-          console.log('Formatted messages for rendering:', formattedMessages);
         } catch (error) {
           console.error('Error fetching chat history:', error);
           toast({
@@ -274,7 +271,6 @@ const Chatbot = () => {
       }
     };
 
-    console.log('Attempting to fetch chat history...', { isOpen, user, token });
     fetchChatHistory();
   }, [isOpen, user, token, toast]);
 
@@ -419,10 +415,11 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
-      {!isOpen ? (
+    <>
+      {/* Chatbot Open Button (always bottom right) */}
+      {!isOpen && (
         <button
-          className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-4 rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 transform hover:-translate-y-1"
+          className="fixed bottom-6 right-6 z-50 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-4 rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 transform hover:-translate-y-1"
           onClick={() => setIsOpen(true)}
           aria-label="Open chat"
         >
@@ -430,10 +427,13 @@ const Chatbot = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
           </svg>
         </button>
-      ) : (
+      )}
+
+      {/* Chatbot Box (responsive positioning) */}
+      {isOpen && (
         <div 
-          className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full h-[32rem] max-w-[24rem] min-w-[300px] flex flex-col overflow-hidden border border-gray-200 dark:border-slate-700 backdrop-blur-lg bg-opacity-95 dark:bg-opacity-95"
-          style={{ 
+          className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-[95vw] h-full max-h-[85vh] flex flex-col overflow-hidden rounded-t-3xl md:bottom-6 md:right-6 md:left-auto md:transform-none md:h-[32rem] md:max-w-[24rem] md:rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 backdrop-blur-lg bg-opacity-95 dark:bg-opacity-95 z-[90]"
+          style={{
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
           }}
         >
@@ -475,9 +475,8 @@ const Chatbot = () => {
           <div 
             ref={chatWindowRef} 
             className="chat-window flex-grow p-3 sm:p-4 overflow-y-auto text-sm leading-relaxed custom-scrollbar flex flex-col"
-            style={{ 
+            style={{
               scrollBehavior: 'smooth',
-              maxHeight: 'calc(100% - 120px)',
               scrollbarWidth: 'thin',
               scrollbarColor: 'rgba(99, 102, 241, 0.5) transparent',
               msOverflowStyle: 'none',
@@ -580,7 +579,7 @@ const Chatbot = () => {
                       {message.type === 'bot' && (
                         <img src={botAvatar} alt="Bot Avatar" className="chat-avatar" />
                       )}
-                      <div className={`chat-message ${message.type}`}>
+                      <div className={`chat-message ${message.type} max-w-full md:max-w-[85%]`}>
                         <div className="message-bubble">
                           <ReactMarkdown rehypePlugins={[rehypeRaw]}>
                             {message.text}
@@ -614,11 +613,11 @@ const Chatbot = () => {
             )}
           </div>
           <div className="flex-none p-4 border-t border-gray-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-b-3xl">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3">
               <div className="flex-grow relative">
                 <input
                   type="text"
-                  className="chat-input w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-full py-2.5 pl-4 pr-14 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 text-sm shadow-sm transition-all duration-200"
+                  className="chat-input w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-full py-2.5 pl-4 pr-10 sm:pr-14 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 text-sm shadow-sm transition-all duration-200"
                   placeholder="Ask about travel..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -657,7 +656,7 @@ const Chatbot = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
