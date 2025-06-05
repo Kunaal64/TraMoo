@@ -899,17 +899,29 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
       
       // Format chat history for Gemini, limit to last 5 messages to reduce tokens
       const recentHistory = chatHistory.slice(-5);
-      const formattedHistory = recentHistory.map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model',
-        parts: [{ text: String(msg.message || '') }]
-      }));
+      const formattedHistory = recentHistory
+        .filter((msg, index, arr) => {
+          // If it's the very first message in the history and it's a model message, filter it out.
+          // This prevents starting a chat session with a model message.
+          return !(index === 0 && msg.sender !== 'user');
+        })
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'model',
+          parts: [{ text: String(msg.message || '') }]
+        }));
 
       console.log('Starting chat session with history:', formattedHistory.length, 'messages');
       
-      // Start a chat session with limited history
-      const chat = model.startChat({
-        history: formattedHistory,
-      });
+      let chat;
+      if (formattedHistory.length > 0) {
+        // Start a chat session with limited history
+        chat = model.startChat({
+          history: formattedHistory,
+        });
+      } else {
+        // If no valid history, start a new chat session without history
+        chat = model.startChat();
+      }
       
       // Add a small delay before sending the message
       await delay(1000);
