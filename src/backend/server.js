@@ -985,75 +985,116 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
       });
     }
 
-    // Initialize Google AI if available
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
+    // Check if Google AI API key is configured
+    const googleApiKey = process.env.GOOGLE_AI_API_KEY;
+      if (!googleApiKey) {
+        console.error('Google AI API key is not configured');
+        throw new Error('AI service is not properly configured');
+      }
 
-    try {
-      // Fetch recent chat history for context (last 5 messages excluding current one)
-      const chatHistory = await ChatMessage.find({ chatSessionId })
-        .sort({ timestamp: 1 })
-        .limit(5); // Limit to last 5 messages for context
+      // Initialize Google AI
+      try {
+        const genAI = new GoogleGenerativeAI(googleApiKey);
+        
+        // Fetch recent chat history for context (last 5 messages excluding current one)
+        const chatHistory = await ChatMessage.find({ chatSessionId })
+          .sort({ timestamp: 1 })
+          .limit(5); // Limit to last 5 messages for context
 
-      const formattedHistory = chatHistory.map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.message }],
-      }));
+        const formattedHistory = chatHistory.map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.message }],
+        }));
 
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-      let attempt = 0;
-      const maxAttempts = 3;
-      let geminiResponseText = 'Sorry, I am having trouble connecting right now. Please try again later.';
+        let attempt = 0;
+        const maxAttempts = 3;
+        let geminiResponseText = 'I apologize, but I am currently experiencing technical difficulties. Please try again later.';
 
-      while (attempt < maxAttempts) {
-        try {
-          const result = await model.startChat({
-            history: formattedHistory,
-            generationConfig: {
-              maxOutputTokens: 500,
-              temperature: 0.7,
-              topP: 0.9,
-              topK: 40,
-            },
-          }).sendMessage(message);
-
-          geminiResponseText = result.response.text();
-          break; // Exit loop if successful
-        } catch (geminiError) {
-          console.error(`Gemini API Error on attempt ${attempt + 1}:`, geminiError);
-          attempt++;
-          if (attempt < maxAttempts) {
-            // Wait before retrying (exponential backoff)
-            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
-          } else {
-            console.error('Max retry attempts reached');
-            throw geminiError; // Throw the last error if all attempts fail
+        while (attempt < maxAttempts) {
+          try {
+            const chat = model.startChat({
+              history: formattedHistory,
+              generationConfig: {
+                maxOutputTokens: 500,
+                temperature: 0.7,
+                topP: 0.9,
+                topK: 40,
+              },
+            });
+            
+            const result = await chat.sendMessage(message);
+            geminiResponseText = result.response.text();
+            break; // Exit loop if successful
+          } catch (geminiError) {
+            console.error(`Gemini API Error on attempt ${attempt + 1}:`, geminiError);
+            attempt++;
+            if (attempt < maxAttempts) {
+              // Wait before retrying (exponential backoff)
+              await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+            } else {
+              console.error('Max retry attempts reached');
+              // Instead of throwing, we'll return a friendly error message
+              geminiResponseText = 'I\'m sorry, but I\'m having trouble connecting to the AI service right now. Please try again later.';
+            }
           }
         }
-      }
-    } catch (error) {
-      console.error('Error generating response from Gemini:', error);
-      res.status(500).json({ success: false, message: 'Failed to generate response from Gemini' });
-    }
 
-    // Save bot message to DB
+        
+        // Save bot message to DB
+        const botMessage = new ChatMessage({
+          chatSessionId,
+          sender: 'bot',
+          message: geminiResponseText,
+          timestamp: new Date(),
+        });
+        await botMessage.save();
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Message processed successfully',
+          response: botMessage
+        });
+        
+      } catch (error) {
+        console.error('Error initializing Google AI:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to initialize AI service',
+          error: error.message
+        });
+      }
+  } catch (error) {
+    console.error('Error in chat endpoint:', error);
+    // If we get here, it's an unexpected error - send a generic error response
+    const errorMessage = 'I\'m sorry, but I encountered an error while processing your message. Please try again later.';
+    
+    // Save error message to DB
     const botMessage = new ChatMessage({
       chatSessionId,
       sender: 'bot',
-      message: geminiResponseText,
+      message: errorMessage,
       timestamp: new Date(),
     });
-    await botMessage.save();
-
-    res.status(200).json({ success: true, messages: [userMessage, botMessage] });
-    console.log(`Chatbot message sent for session: ${chatSessionId}`);
-  } catch (error) {
-    console.error('Error sending message to Gemini or saving chat:', {
-      message: error.message,
-      stack: error.stack
-    });
-    res.status(500).json({ success: false, message: 'Failed to send message or save chat' });
-  }
+    
+    try {
+      await botMessage.save();
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to process chat message',
+        response: botMessage,
+        error: error.message
+      });
+    } catch (saveError) {
+      console.error('Failed to save error message:', saveError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to process chat message',
+        error: error.message
+      });
+    }
 });
 
 app.delete('/api/chat/history/:chatSessionId', protect, async (req, res) => {
