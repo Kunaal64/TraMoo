@@ -1095,6 +1095,7 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
         error: error.message
       });
     }
+  }
 });
 
 app.delete('/api/chat/history/:chatSessionId', protect, async (req, res) => {
