@@ -139,34 +139,62 @@ const allowedOrigins = [
   'http://localhost:5000',
   'http://localhost:8081',
   'https://tramoo-navy.vercel.app',
-  'https://tramoo-navy.vercel.app/'
+  'https://tramoo-navy.vercel.app',
+  'https://tramoo-vw28.onrender.com',
+  'https://tramoo-vw28.onrender.com/'
 ];
 
 // Add environment variables if they exist
-if (process.env.VITE_BACKEND_URL) {
-  allowedOrigins.push(process.env.VITE_BACKEND_URL);
-}
-if (process.env.VITE_FRONTEND_URL) {
-  allowedOrigins.push(process.env.VITE_FRONTEND_URL);
-}
+const envUrls = [
+  process.env.VITE_BACKEND_URL,
+  process.env.VITE_FRONTEND_URL,
+  process.env.FRONTEND_URL,
+  process.env.BACKEND_URL
+].filter(Boolean);
+
+// Add environment URLs to allowed origins
+envUrls.forEach(url => {
+  if (url && !allowedOrigins.includes(url)) {
+    allowedOrigins.push(url);
+    // Also add URL without trailing slash
+    const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+    if (cleanUrl !== url && !allowedOrigins.includes(cleanUrl)) {
+      allowedOrigins.push(cleanUrl);
+    }
+  }
+});
 
 // Remove duplicates and undefined values
 const uniqueOrigins = [...new Set(allowedOrigins.filter(Boolean))];
+
+console.log('Allowed CORS origins:', JSON.stringify(uniqueOrigins, null, 2));
 
 // Configure CORS with enhanced options
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, etc)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('No origin header present, allowing request');
+      return callback(null, true);
+    }
+    
+    // Normalize the origin by removing trailing slashes
+    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
     
     // Check if origin is allowed
-    if (uniqueOrigins.includes(origin) || 
-        uniqueOrigins.some(allowed => origin.startsWith(allowed.replace(/\/+$/, '')))) {
+    const isAllowed = uniqueOrigins.some(allowed => {
+      const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
+      return normalizedOrigin === normalizedAllowed || 
+             normalizedOrigin.startsWith(normalizedAllowed);
+    });
+    
+    if (isAllowed) {
       return callback(null, true);
     }
     
     console.log('CORS blocked for origin:', origin);
-    return callback(new Error('Not allowed by CORS'), false);
+    console.log('Allowed origins:', uniqueOrigins);
+    return callback(new Error(`Not allowed by CORS. Origin: ${origin}`), false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
@@ -433,37 +461,87 @@ app.post('/api/auth/login', async (req, res) => {
 // Google OAuth Login Route
 app.post('/api/auth/google', async (req, res) => {
   const { code } = req.body;
+  
+  if (!code) {
+    console.error('No authorization code provided');
+    return res.status(400).json({ message: 'Authorization code is required' });
+  }
 
   try {
-    const { tokens } = await client.getToken(code);
+    console.log('Exchanging authorization code for tokens...');
+    const { tokens } = await client.getToken({
+      code,
+      redirect_uri: GOOGLE_REDIRECT_URI
+    });
+    
+    if (!tokens.id_token) {
+      throw new Error('No ID token in the response');
+    }
+
+    console.log('Verifying ID token...');
     const ticket = await client.verifyIdToken({
       idToken: tokens.id_token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: GOOGLE_CLIENT_ID,
     });
+    
     const payload = ticket.getPayload();
+    console.log('Google user authenticated:', payload.email);
+
+    if (!payload.email_verified) {
+      return res.status(403).json({ message: 'Google account email not verified' });
+    }
 
     let user = await User.findOne({ email: payload.email });
 
     if (!user) {
+      console.log('Creating new user for Google account:', payload.email);
       // Create new user if not exists
       user = new User({
         name: payload.name,
         email: payload.email,
-        password: Date.now().toString(), // Dummy password for Google users
+        avatar: payload.picture,
+        password: crypto.randomBytes(16).toString('hex'), // More secure random password
         isGoogleUser: true,
       });
       await user.save();
+      console.log('New Google user created:', user.email);
     } else if (!user.isGoogleUser) {
+      console.log('Email already registered with non-Google account:', payload.email);
       // If a user with this email exists but is not a Google user, return an error
-      return res.status(409).json({ message: 'An account with this email already exists. Please sign in using your password.', code: 'EMAIL_ALREADY_EXISTS_NON_GOOGLE' });
+      return res.status(409).json({ 
+        message: 'An account with this email already exists. Please sign in using your password.', 
+        code: 'EMAIL_ALREADY_EXISTS_NON_GOOGLE' 
+      });
     }
 
     const token = generateToken(user.id);
-    res.status(200).json({ user: { id: user.id, name: user.name, email: user.email }, token });
     console.log(`Google user logged in: ${user.name} (${user.email})`);
+    
+    res.status(200).json({ 
+      user: { 
+        id: user.id, 
+        name: user.name, 
+        email: user.email,
+        avatar: user.avatar
+      }, 
+      token 
+    });
+    
   } catch (error) {
-    console.error('Google authentication error:', error); // Keep this error log
-    res.status(500).json({ message: 'Google authentication failed' });
+    console.error('Google authentication error:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    if (error.message.includes('invalid_grant')) {
+      return res.status(400).json({ 
+        message: 'Invalid authorization code. Please try signing in again.',
+        code: 'INVALID_AUTH_CODE'
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Google authentication failed',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -1027,7 +1105,7 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
           parts: [{ text: msg.message }],
         }));
 
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
         let attempt = 0;
         const maxAttempts = 3;
