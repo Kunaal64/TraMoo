@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: tramoo-backend
+    env: node
+    buildCommand: cd src/backend && npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 18.x
+      - key: MONGODB_URI
+        fromDatabase:
+          name: mongodb
+          property: connectionString
+    plan: free
