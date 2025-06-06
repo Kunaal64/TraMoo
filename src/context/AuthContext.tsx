@@ -65,9 +65,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { token, user, refreshToken } = response.data;
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('refreshToken', refreshToken);
-      setUser(user);
+      await checkAuthStatus();
       toast({
         title: 'Logged In',
         description: 'You have successfully logged in!',
@@ -96,9 +95,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { token, user, refreshToken } = response.data;
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('refreshToken', refreshToken);
-      setUser(user);
+      await checkAuthStatus();
       toast({
         title: 'Registration Successful',
         description: 'Welcome! Your account has been created.',
@@ -119,9 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const googleLogin = (userData: { user: User; token: string; refreshToken?: string }) => {
     localStorage.setItem('token', userData.token);
-    localStorage.setItem('user', JSON.stringify(userData.user));
     localStorage.setItem('refreshToken', userData.refreshToken || '');
-    setUser(userData.user);
+    checkAuthStatus();
     toast({
       title: 'Google Login Successful',
       description: 'You have successfully logged in with Google!',
@@ -167,7 +164,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       );
       setUser(response.data.user);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
       toast({
         title: 'Profile Updated',
         description: 'Your profile information has been successfully updated.',

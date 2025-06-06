@@ -107,7 +107,7 @@ const Login = () => {
         throw new Error('Invalid response from server');
       }
     } catch (error: any) {
-      console.error('Google login error:', error);
+      // console.error('Google login error:', error); // Removed sensitive logging
       const errorMessage = error.response?.data?.message || 'Google login failed. Please try again.';
 
       toast({
@@ -177,7 +177,7 @@ const Login = () => {
         
       navigate(from, { replace: true });
     } catch (error: any) {
-      console.error('Login/Registration error:', error.message, error); // Log error message and full error in development
+      // console.error('Login/Registration error:', error.message, error); // Removed sensitive logging
       // Extract more specific error messages from the backend
       let errorMessage = 'Something went wrong. Please try again.';
       if (error.response?.data?.errors && error.response.data.errors.length > 0) {
