@@ -101,7 +101,4 @@ TraMoo is a full-stack MERN (MongoDB, Express.js, React, Node.js) application fo
 Ensure `YOUR_VERCEL_FRONTEND_URL` and `YOUR_RENDER_BACKEND_URL/api/auth/google` are added to **Authorized redirect URIs** in your Google Cloud Console OAuth credentials.
 
 
-## 📄 License
-
-This project is licensed under the MIT License.
 
