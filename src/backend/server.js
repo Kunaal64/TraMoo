@@ -145,6 +145,27 @@ const protect = (req, res, next) => {
   }
 };
 
+// Middleware to authorize user roles
+const authorizeRoles = (...roles) => {
+  return async (req, res, next) => {
+    try {
+      const user = await User.findById(req.user); // Assuming req.user is set by the protect middleware
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      if (!roles.includes(user.role)) {
+        return res.status(403).json({ message: `Role ${user.role} is not authorized to access this resource` });
+      }
+      next();
+    } catch (error) {
+      console.error('Error in authorizeRoles middleware:', error);
+      res.status(500).json({ message: 'Server error during authorization' });
+    }
+  };
+};
+
 // CORS configuration
 const allowedOrigins = [
   // Production
@@ -404,6 +425,7 @@ app.post('/api/auth/register', [
       name,
       email,
       password: hashedPassword,
+      role: email === 'owner@gmail.com' ? 'admin' : 'user',
     });
 
     await user.save();
@@ -933,14 +955,15 @@ app.put('/api/blogs/:id', protect, [
 
   try {
     let blog = await Blog.findById(req.params.id);
+    const user = await User.findById(req.user);
 
     if (!blog) {
       return res.status(404).json({ message: 'Blog not found' });
     }
 
-    // Ensure author matches
-    if (blog.author.toString() !== req.user) {
-      return res.status(401).json({ message: 'User not authorized' });
+    // Allow admin to edit any blog, otherwise check if author matches
+    if (user.role !== 'admin' && blog.author.toString() !== req.user) {
+      return res.status(401).json({ message: 'User not authorized to edit this blog' });
     }
 
     // Parse tags safely
@@ -968,7 +991,7 @@ app.put('/api/blogs/:id', protect, [
   }
 });
 
-app.delete('/api/blogs/:id', protect, async (req, res) => {
+app.delete('/api/blogs/:id', protect, authorizeRoles('admin'), async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id);
 
@@ -1068,7 +1091,7 @@ app.post('/api/blogs/:id/comment', protect, async (req, res) => {
   }
 });
 
-app.delete('/api/blogs/:id/comments/:commentId', protect, async (req, res) => {
+app.delete('/api/blogs/:id/comments/:commentId', protect, authorizeRoles('admin'), async (req, res) => {
   try {
     const blogId = req.params.id;
     const commentId = req.params.commentId;
