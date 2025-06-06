@@ -15,6 +15,7 @@ const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const helmet = require('helmet');
+const multer = require('multer');
 
 // Load environment variables
 dotenv.config();
@@ -361,6 +362,17 @@ const ChatMessageSchema = new mongoose.Schema({
 const User = mongoose.model('User', UserSchema);
 const Blog = mongoose.model('Blog', BlogSchema);
 const ChatMessage = mongoose.model('ChatMessage', ChatMessageSchema);
+
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './uploads');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+const upload = multer({ storage: storage });
 
 // Routes
 
@@ -862,7 +874,7 @@ app.get('/api/blogs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/blogs', protect, [
+app.post('/api/blogs', protect, upload.array('images', 5), [
   body('title').notEmpty().withMessage('Title is required'),
   body('content').notEmpty().withMessage('Content is required'),
   body('excerpt').notEmpty().withMessage('Excerpt is required'),
@@ -905,7 +917,7 @@ app.post('/api/blogs', protect, [
   }
 });
 
-app.put('/api/blogs/:id', protect, [
+app.put('/api/blogs/:id', protect, upload.array('images', 5), [
   body('title').notEmpty().withMessage('Title is required'),
   body('content').notEmpty().withMessage('Content is required'),
   body('excerpt').notEmpty().withMessage('Excerpt is required'),
@@ -935,12 +947,15 @@ app.put('/api/blogs/:id', protect, [
     const currentImages = blog.images;
     const updatedImages = Array.isArray(currentImages) ? [...currentImages, ...newImages] : newImages;
 
+    // Parse tags safely
+    const parsedTags = tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [];
+
     const updatedBlog = await Blog.findByIdAndUpdate(req.params.id, {
       title,
       subtitle,
       content,
       excerpt: excerpt || content.substring(0, 150) + '...',
-      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+      tags: parsedTags,
       images: updatedImages,
       country,
       published: published === 'true',
