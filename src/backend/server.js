@@ -118,9 +118,7 @@ const client = new OAuth2Client({
   redirectUri: process.env.GOOGLE_REDIRECT_URI || 'postmessage' // Default to postmessage for token exchange
 });
 
-console.log('Google OAuth client initialized with client ID:', 
-  process.env.GOOGLE_CLIENT_ID ? 
-  `${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...` : 'Not set');
+console.log('Google OAuth client initialized.');
 
 // Helper to generate JWT
 const generateToken = (id) => {
@@ -148,15 +146,17 @@ const protect = (req, res, next) => {
 // CORS configuration
 const allowedOrigins = [
   // Production
-  'https://your-vercel-app.vercel.app',
-  'https://your-render-backend.onrender.com',
+  'https://story-pin-voyage.vercel.app',
+  'https://*.vercel.app',
+  'https://wanderlust-3j9m.onrender.com',
   // Development
-  'http://localhost:8080',
   'http://localhost:3000',
+  'http://localhost:8080',
   'http://localhost:5000',
-  'http://127.0.0.1:8080',
   'http://127.0.0.1:3000',
-  'http://127.0.0.1:5000'
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:5000',
+  // Add any other domains as needed
 ];
 
 // Add any additional origins from environment variables
@@ -178,11 +178,8 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log('No origin - allowing request');
       return callback(null, true);
     }
-    
-    console.log('Checking origin:', origin);
     
     // Check if the origin is in the allowed list
     const isAllowed = allowedOrigins.some(allowed => {
@@ -191,10 +188,8 @@ const corsOptions = {
     });
     
     if (isAllowed) {
-      console.log('Origin allowed:', origin);
       return callback(null, true);
     } else {
-      console.log('Origin not allowed:', origin);
       return callback(new Error(`Not allowed by CORS. Origin: ${origin}, Allowed: ${allowedOrigins.join(', ')}`), false);
     }
   },
@@ -209,18 +204,11 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   const requestHeaders = req.headers['access-control-request-headers'];
   
-  // Log CORS-related information
-  console.log('=== CORS Debug ===');
-  console.log('Request Origin:', origin);
-  console.log('Request Method:', req.method);
-  
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS preflight request');
     
     // Check if origin is allowed
     if (origin && !allowedOrigins.some(o => origin === o || origin.startsWith(o.replace(/\/+$/, '')))) {
-      console.log('CORS blocked for origin (preflight):', origin);
       return res.status(403).json({ 
         success: false, 
         message: 'Not allowed by CORS',
@@ -235,13 +223,11 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400');
     
-    console.log('Sending 204 for OPTIONS');
     return res.status(204).send();
   }
   
   // Allow requests with no origin (like mobile apps or curl requests)
   if (!origin) {
-    console.log('No origin - allowing request');
     return next();
   }
   
@@ -255,7 +241,6 @@ app.use((req, res, next) => {
   res.header('X-Frame-Options', 'DENY');
   res.header('X-XSS-Protection', '1; mode=block');
   
-  console.log('Proceeding to next middleware');
   next();
 });
 
@@ -267,7 +252,7 @@ app.use(express.static(path.join(__dirname, '../../public')));
 // app.use(morgan('dev')); // Removed this line to prevent general request logging
 // Re-enable helmet with specific configurations
 app.use(helmet({
-  crossOriginOpenerPolicy: { policy: "unsafe-none" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   frameguard: { action: 'SAMEORIGIN' },
   contentSecurityPolicy: {
     directives: {
@@ -329,6 +314,7 @@ const UserSchema = new mongoose.Schema({
   joinedAt: { type: Date, default: Date.now },
   lastActive: { type: Date, default: Date.now },
   isGoogleUser: { type: Boolean, default: false },
+  refreshToken: { type: String },
 });
 
 UserSchema.index({ email: 1 }); // Index on email for faster lookups
@@ -407,7 +393,11 @@ app.post('/api/auth/register', [
     await user.save();
 
     const token = generateToken(user.id);
-    res.status(201).json({ user: { id: user.id, name: user.name, email: user.email }, token });
+    const refreshToken = jwt.sign({ id: user.id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    res.status(201).json({ user: { id: user.id, name: user.name, email: user.email }, token, refreshToken });
     console.log(`New user registered: ${user.name} (${user.email})`);
   } catch (error) {
     console.error(error); // Keep this error log
@@ -435,7 +425,11 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const token = generateToken(user.id);
-    res.json({ user: { id: user.id, name: user.name, email: user.email }, token });
+    const refreshToken = jwt.sign({ id: user.id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    res.json({ user: { id: user.id, name: user.name, email: user.email }, token, refreshToken });
     console.log(`Existing user logged in: ${user.name} (${user.email})`);
   } catch (error) {
     console.error(error); // Keep this error log
@@ -465,7 +459,7 @@ app.post('/api/auth/google', async (req, res) => {
   console.log('Credential received (first 50 chars):', credential.substring(0, 50) + '...');
 
   try {
-    console.log('Verifying Google ID token...');
+    console.log('Verifying Google ID token with client ID:', process.env.GOOGLE_CLIENT_ID);
     
     // Verify the ID token from the credential
     const ticket = await client.verifyIdToken({
@@ -473,6 +467,7 @@ app.post('/api/auth/google', async (req, res) => {
       audience: process.env.GOOGLE_CLIENT_ID,
     }).catch(error => {
       console.error('Error verifying Google ID token:', error.message);
+      console.error('Full error object:', error);
       throw new Error('Invalid Google credential');
     });
 
@@ -489,7 +484,7 @@ app.post('/api/auth/google', async (req, res) => {
     }
     
     if (!payload.email) {
-      console.error('No email found in Google account payload');
+      console.error('No email found in Google account payload', payload);
       return res.status(400).json({ 
         success: false, 
         message: 'No email found in Google account',
@@ -510,10 +505,12 @@ app.post('/api/auth/google', async (req, res) => {
     session.startTransaction();
     
     try {
+      console.log('Searching for user with email:', payload.email);
       let user = await User.findOne({ email: payload.email }).session(session);
       let isNewUser = false;
       
       if (!user) {
+        console.log('User not found, creating new user.');
         // Create new user
         user = new User({
           name: payload.name || payload.email.split('@')[0],
@@ -521,13 +518,15 @@ app.post('/api/auth/google', async (req, res) => {
           password: crypto.randomBytes(20).toString('hex'), // Random password for Google users
           isGoogleUser: true,
           profilePicture: payload.picture,
-          emailVerified: payload.email_verified || false
+          emailVerified: payload.email_verified || false,
+          refreshToken: jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' }),
         });
         
         await user.save({ session });
         isNewUser = true;
         console.log('New user created for Google login:', user.email);
       } else if (!user.isGoogleUser) {
+        console.warn('User found but not a Google user. Aborting transaction.');
         // User exists but not as Google user
         await session.abortTransaction();
         session.endSession();
@@ -540,7 +539,11 @@ app.post('/api/auth/google', async (req, res) => {
       }
       
       // Generate JWT token
+      console.log('Generating JWT for user ID:', user._id);
       const token = generateToken(user._id);
+      const refreshToken = jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+      user.refreshToken = refreshToken;
+      await user.save({ session });
 
       // Prepare user data for response
       const userData = {
@@ -560,22 +563,23 @@ app.post('/api/auth/google', async (req, res) => {
       console.log(isNewUser ? 'New user registered' : 'Existing user logged in');
 
       // Return user data and token in the format expected by the frontend
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         token,
         user: userData,
-        isNewUser
+        isNewUser,
+        refreshToken
       });
-      
-      console.log(`Google user logged in: ${user.name} (${user.email})`);
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
       console.error('Error in Google auth transaction:', error);
-      throw error; // This will be caught by the outer try-catch
+      console.error('Full transaction error object:', error);
+      throw error; // Re-throw to be caught by the outer try-catch for consistent error response
     }
   } catch (error) {
     console.error('Google authentication error:', error);
+    console.error('Full authentication error object:', error);
     
     let errorMessage = 'Google authentication failed';
     let statusCode = 500;
@@ -634,11 +638,17 @@ app.get('/api/auth/logout', protect, async (req, res) => {
 
 app.get('/api/auth/me', protect, async (req, res) => {
   try {
+    console.log('Received request for /api/auth/me. User ID from token:', req.user);
     const user = await User.findById(req.user).select('-password');
-    res.json(user);
+    if (!user) {
+      console.log('User not found for ID:', req.user);
+      return res.status(404).json({ message: 'User not found' });
+    }
+    console.log('Successfully fetched user for /api/auth/me:', user.email);
+    res.json({ user }); // Wrap the user object in a 'user' key
   } catch (error) {
-    console.error(error); // Keep this error log
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error in /api/auth/me:', error); // Keep this error log
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
@@ -994,7 +1004,7 @@ app.post('/api/blogs/:id/like', protect, async (req, res) => {
     }
 
     await blog.save();
-    res.json({ likes: blog.likes.length, isLiked: !isLiked });
+    res.json({ likes: blog.likes, isLiked: !isLiked });
     const user = await User.findById(req.user);
     const action = isLiked ? 'unliked' : 'liked';
     console.log(`Blog ${action}: "${blog.title}" by ${user ? user.name : 'Unknown User'}`);
@@ -1034,7 +1044,7 @@ app.post('/api/blogs/:id/comment', protect, async (req, res) => {
 
     // Populate the author field in the new comment to send back to frontend
     const populatedComment = blog.comments[blog.comments.length - 1];
-    await ChatMessage.populate(populatedComment, { path: 'author', select: 'name' });
+    await Blog.populate(populatedComment, { path: 'author', select: 'name' });
 
     res.status(201).json(populatedComment);
     const user = await User.findById(req.user);
@@ -1042,6 +1052,40 @@ app.post('/api/blogs/:id/comment', protect, async (req, res) => {
   } catch (error) {
     console.error(error); // Keep this error log
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.delete('/api/blogs/:id/comments/:commentId', protect, async (req, res) => {
+  try {
+    const blogId = req.params.id;
+    const commentId = req.params.commentId;
+    const userId = req.user; // User ID from protect middleware
+
+    const blog = await Blog.findById(blogId);
+    if (!blog) {
+      return res.status(404).json({ message: 'Blog not found' });
+    }
+
+    const comment = blog.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    // Check if the authenticated user is the author of the comment
+    if (comment.author.toString() !== userId) {
+      return res.status(401).json({ message: 'User not authorized to delete this comment' });
+    }
+
+    // Use pull to remove the subdocument from the array
+    blog.comments.pull({ _id: commentId }); 
+    await blog.save();
+
+    res.status(200).json({ message: 'Comment deleted successfully' });
+    const user = await User.findById(req.user);
+    console.log(`Comment deleted from blog: "${blog.title}" by ${user ? user.name : 'Unknown User'}`);
+  } catch (error) {
+    console.error(error); // Keep this error log
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
@@ -1167,8 +1211,8 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
         }));
 
         // Use the stable Gemini Pro model
-        const model = genAI.getGenerativeModel({ 
-          model: "gemini-pro",
+        const model = genAI.getGenerativeModel({
+          model: "gemini-1.5-pro-latest",
           generationConfig: {
             maxOutputTokens: 300, // Reduce token usage
             temperature: 0.7,
@@ -1270,6 +1314,37 @@ app.delete('/api/chat/history/:chatSessionId', protect, async (req, res) => {
   } catch (error) {
     console.error('Error clearing chat history:', error);
     res.status(500).json({ success: false, message: 'Failed to clear chat history' });
+  }
+});
+
+// Token Refresh Route
+app.post('/api/auth/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'Refresh Token required' });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.status(403).json({ message: 'Invalid Refresh Token' });
+    }
+
+    // Generate new access token
+    const newAccessToken = generateToken(user._id);
+
+    // Generate new refresh token for rotation (optional, but good practice)
+    const newRefreshToken = jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    user.refreshToken = newRefreshToken;
+    await user.save();
+
+    res.json({ token: newAccessToken, refreshToken: newRefreshToken });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(403).json({ message: 'Invalid or expired Refresh Token' });
   }
 });
 

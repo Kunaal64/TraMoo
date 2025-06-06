@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Markdown from 'react-markdown';
@@ -32,30 +32,31 @@ const BlogDetail = () => {
     return `${import.meta.env.VITE_BACKEND_URL}${path}`;
   };
 
-  useEffect(() => {
-    const fetchBlog = async () => {
-      if (!id) {
-        setLoading(false);
-        setError(new Error("Blog ID is missing."));
-        return;
-      }
-      setLoading(true);
-      try {
-        const response = await apiService.getBlogById(id);
-        setBlog(response);
-      } catch (err) {
-        setError(err);
-        toast({
-          title: 'Error',
-          description: 'Failed to load blog post.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBlog();
+  const fetchBlog = useCallback(async () => {
+    if (!id) {
+      setLoading(false);
+      setError(new Error("Blog ID is missing."));
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await apiService.getBlogById(id);
+      setBlog(response);
+    } catch (err) {
+      setError(err);
+      toast({
+        title: 'Error',
+        description: 'Failed to load blog post.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   }, [id, toast]);
+
+  useEffect(() => {
+    fetchBlog();
+  }, [fetchBlog]);
 
   useEffect(() => {
     if (blog?.images && blog.images.length > 1) {
@@ -122,10 +123,8 @@ const BlogDetail = () => {
         `/blogs/${id}/comment`,
         { method: 'POST', body: JSON.stringify({ content: commentContent }) }
       );
-      setBlog((prev) => ({
-        ...prev,
-        comments: [...prev.comments, response.comment],
-      }));
+      // After successful comment addition, re-fetch the entire blog to ensure all comments are up-to-date and populated
+      await fetchBlog();
       setCommentContent('');
     } catch (err) {
       toast({
@@ -158,10 +157,8 @@ const BlogDetail = () => {
 
     try {
       await apiService.request(`/blogs/${blog._id}/comments/${commentId}`, { method: 'DELETE' });
-      setBlog((prev) => ({
-        ...prev,
-        comments: prev.comments.filter((comment) => comment._id !== commentId),
-      }));
+      // After successful deletion, re-fetch the entire blog to ensure comments are up-to-date and re-rendered correctly
+      await fetchBlog();
       toast({
         title: 'Success',
         description: 'Comment deleted successfully.',
@@ -275,41 +272,43 @@ const BlogDetail = () => {
               {blog.comments.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">No comments yet. Be the first to comment!</p>
               ) : (
-                blog.comments.map((comment) => (
-                  <motion.div
-                    key={comment._id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex items-start space-x-4 p-4 rounded-lg bg-card border border-border shadow-sm"
-                  >
-                    <div className="flex-shrink-0">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg dark:bg-primary-foreground dark:text-primary">{getInitials(comment.author?.name || 'Unknown')}</AvatarFallback>
-                      </Avatar>
-                    </div>
-                    <div className="flex-grow">
-                      <div className="flex justify-between items-center mb-1">
-                        <p className="font-semibold text-foreground">{comment.author?.name || 'Unknown User'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                blog.comments
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((comment) => (
+                    <motion.div
+                      key={comment._id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="flex items-start space-x-4 p-4 rounded-lg bg-card border border-border shadow-sm"
+                    >
+                      <div className="flex-shrink-0">
+                        <Avatar className="w-10 h-10">
+                          <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg dark:bg-primary-foreground dark:text-primary">{getInitials(comment.author?.name || 'Unknown')}</AvatarFallback>
+                        </Avatar>
                       </div>
-                      <p className="text-foreground mt-1">{comment.content}</p>
-                      {user && user._id === comment.author?._id && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteComment(comment._id)}
-                          className="ml-auto mt-2 text-xs py-1 px-2 rounded-md transition-all duration-200 flex items-center gap-1 text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 size={12} />
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  </motion.div>
-                ))
+                      <div className="flex-grow">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="font-semibold text-foreground">{comment.author?.name || 'Unknown User'}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <p className="text-foreground mt-1">{comment.content}</p>
+                        {user && user._id === comment.author?._id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteComment(comment._id)}
+                            className="ml-auto mt-2 text-xs py-1 px-2 rounded-md transition-all duration-200 flex items-center gap-1 text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 size={12} />
+                            Delete
+                          </Button>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))
               )}
             </div>
           </div>

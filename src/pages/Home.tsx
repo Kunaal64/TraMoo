@@ -240,7 +240,7 @@ const Home = () => {
                     <Link to={`/blogs/${blog._id}`}>
                       <BlogCard 
                         {...blog} 
-                        isLiked={user ? blog.likes.includes(user._id) : false} 
+                        isLiked={user && Array.isArray(blog.likes) ? blog.likes.includes(user._id) : false} 
                         onLikeToggle={handleLikeToggle} 
                       />
                     </Link>

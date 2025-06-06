@@ -35,65 +35,134 @@ class ApiService {
   // Generic request method
   public async request<T = any>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retryCount = 0
   ): Promise<T> {
-    // Ensure endpoint starts with a slash
-    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const url = `${this.baseUrl}${normalizedEndpoint}`;
-    
-    const token = localStorage.getItem('token'); // Get token from localStorage
-
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }), // Add token if available
-        ...options.headers,
-      },
-      ...options,
-    };
-
     try {
-      const response = await fetch(url, config);
-      const responseData = await response.json().catch(() => ({}));
+      // Ensure endpoint starts with a slash
+      const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      const url = `${this.baseUrl}${normalizedEndpoint}`;
       
-      if (!response.ok) {
-        // If the response is not OK, try to extract a more specific error
-        const errorData = responseData || {};
-        let errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
+      const token = localStorage.getItem('token');
+      const refreshToken = localStorage.getItem('refreshToken');
 
-        // If there are validation errors from the backend, prioritize them
-        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
-          errorMessage = errorData.errors.map((err: any) => err.msg).join('; ');
+      // Log request for debugging (removed)
+      // console.log(`API Request [${options.method || 'GET'}] ${url}`, { 
+      //   endpoint,
+      //   options,
+      //   retryCount 
+      // });
+
+      const config: RequestInit = {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+          ...(token && { Authorization: `Bearer ${token}` }),
+          ...(options.headers || {}),
+        },
+        credentials: 'include' as RequestCredentials,
+      };
+
+      const response = await fetch(url, config);
+      
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        // Try to refresh token if this is the first retry
+        if (retryCount === 0) {
+          try {
+            const refreshResponse = await this.request<{ token: string; refreshToken: string }>('/auth/refresh', {
+              method: 'POST',
+              body: JSON.stringify({ refreshToken }),
+              credentials: 'include',
+            });
+            
+            if (refreshResponse.token && refreshResponse.refreshToken) {
+              localStorage.setItem('token', refreshResponse.token);
+              localStorage.setItem('refreshToken', refreshResponse.refreshToken);
+              // Retry the original request with new token
+              return this.request<T>(endpoint, options, retryCount + 1);
+            }
+          } catch (refreshError) {
+            console.error('Token refresh failed:', refreshError);
+            // Clear auth state and redirect to login
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            window.location.href = '/login';
+            throw new Error('Session expired. Please log in again.');
+          }
         }
+        
+        // If we already retried or refresh failed, redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+        throw new Error('Session expired. Please log in again.');
+      }
 
-        console.error(`[API Error] ${response.status} ${response.statusText}:`, errorData);
-        const error = new Error(errorMessage);
-        // Attach the full errorData to the error object for more detailed handling in frontend
-        (error as any).response = { status: response.status, data: errorData };
-        throw error;
+      // Handle rate limiting (429)
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After') || '5';
+        const retryDelay = parseInt(retryAfter, 10) * 1000 || 5000;
+        
+        if (retryCount < 3) {
+          console.log(`Rate limited. Retrying in ${retryDelay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return this.request<T>(endpoint, options, retryCount + 1);
+        }
+        
+        throw new Error('Too many requests. Please try again later.');
+      }
+
+      // Handle other error statuses
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || `Request failed with status ${response.status}`;
+        
+        // Log detailed error for debugging
+        console.error('API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          url,
+          error: errorData,
+        });
+        
+        throw new Error(errorMessage);
+      }
+
+      // Handle successful response (no logging needed here)
+      const data = await response.json().catch(() => ({}));
+      return data as T;
+      
+    } catch (error) {
+      console.error('API Request Failed:', {
+        endpoint,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        retryCount,
+      });
+      
+      // Only retry on network errors
+      if (error instanceof TypeError && error.message.includes('Failed to fetch') && retryCount < 2) {
+        console.log(`Network error. Retrying (${retryCount + 1}/2)...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return this.request<T>(endpoint, options, retryCount + 1);
       }
       
-      return responseData;
-    } catch (error) {
-      console.error('[API Request Failed]', {
-        url,
-        method: options.method || 'GET',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
       throw error;
     }
   }
 
   // Auth methods
   async login(email: string, password: string) {
-    return this.request<{ user: any; token: string }>('/auth/login', {
+    return this.request<{ user: any; token: string; refreshToken: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
   }
 
   async register(userData: { name: string; email: string; password: string }) {
-    return this.request<{ user: any; token: string }>('/auth/register', {
+    return this.request<{ user: any; token: string; refreshToken: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });

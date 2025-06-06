@@ -22,12 +22,8 @@ const Navbar = () => {
   const location = useLocation();
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { isSearchOpen, setIsSearchOpen, setSearchQuery } = useSearch();
-
-  // Check if user is logged in
-  const isAuthenticated = localStorage.getItem('token') !== null;
-  const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}') : null;
 
   const navItems = [
     { to: '/', label: 'Home', icon: <Compass size={18} /> },
@@ -133,7 +129,7 @@ const Navbar = () => {
               
               <ThemeToggle />
               
-              {isAuthenticated ? (
+              {user ? (
                 <>
                   <NavLink
                     to="/profile"
@@ -208,12 +204,12 @@ const Navbar = () => {
                   <span>{item.label}</span>
                 </Link>
               ))}
-              {isAuthenticated ? (
+              {user ? (
                 <>
                   <NavLink
                     to="/profile"
                     onClick={() => setIsOpen(false)}
-                    className="flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                    className="flex items-center space-x-2 py-2 rounded-md transition-colors text-muted-foreground hover:text-orange-500"
                   >
                     <Avatar className="h-7 w-7">
                       <AvatarFallback className="bg-primary text-primary-foreground dark:bg-primary-foreground dark:text-primary">{getInitials(user?.name || '')}</AvatarFallback>
@@ -222,7 +218,7 @@ const Navbar = () => {
                   </NavLink>
                   <button
                     onClick={() => {handleLogout(); setIsOpen(false);}}
-                    className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="w-full flex items-center space-x-2 py-2 rounded-md transition-colors text-muted-foreground hover:text-orange-500"
                   >
                     <LogOut size={18} />
                     <span>Logout</span>

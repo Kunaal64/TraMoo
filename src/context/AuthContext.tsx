@@ -3,6 +3,7 @@ import axios from 'axios';
 import { User } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
+import { apiService } from '../utils/api';
 
 interface AuthContextType {
   user: User | null;
@@ -12,7 +13,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (userData: Partial<User>) => Promise<void>;
   token: string | null;
-  googleLogin: (userData: { user: User; token: string }) => void;
+  googleLogin: (userData: { user: User; token: string; refreshToken: string }) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,15 +41,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await apiService.request('/auth/me');
 
-      setUser(response.data.user);
+      setUser(response.user);
     } catch (error) {
       console.error('AuthContext: checkAuthStatus - Error:', error);
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('refreshToken');
       setUser(null);
       navigate('/login');
     } finally {
@@ -63,9 +63,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password
       });
 
-      const { token, user } = response.data;
+      const { token, user, refreshToken } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('refreshToken', refreshToken);
       setUser(user);
       toast({
         title: 'Logged In',
@@ -93,9 +94,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password
       });
 
-      const { token, user } = response.data;
+      const { token, user, refreshToken } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('refreshToken', refreshToken);
       setUser(user);
       toast({
         title: 'Registration Successful',
@@ -115,9 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const googleLogin = (userData: { user: User; token: string }) => {
+  const googleLogin = (userData: { user: User; token: string; refreshToken: string }) => {
     localStorage.setItem('token', userData.token);
     localStorage.setItem('user', JSON.stringify(userData.user));
+    localStorage.setItem('refreshToken', userData.refreshToken);
     setUser(userData.user);
     toast({
       title: 'Google Login Successful',
@@ -147,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('refreshToken');
       setUser(null);
       navigate('/');
     }

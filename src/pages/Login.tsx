@@ -137,31 +137,45 @@ const Login = () => {
         ? { email: formData.email, password: formData.password }
         : formData;
       
-      const response = await apiService.request<{ user: any; token: string }>(
-        isLogin ? '/auth/login' : '/auth/register',
+      const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      const method = 'POST';
+      const body = JSON.stringify(credentials);
+
+      const response = await apiService.request<{ user: any; token: string; refreshToken: string }>( // Expect refresh token in response
+        endpoint,
         {
-          method: 'POST',
+          method,
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(credentials),
+          body,
         }
       );
 
-      if (response.user && response.token) {
-        await authLogin(credentials.email, credentials.password);
+      // Use the auth context to handle the login/registration state update and token storage
+      if (isLogin) {
+        // The authLogin function in AuthContext already handles setting token and user
+        await authLogin(credentials.email, credentials.password); // Pass credentials to authLogin
         toast({
-          title: isLogin ? 'Login successful!' : 'Account created successfully!',
-          description: `Welcome ${response.user.name || response.user.email}!`,
+          title: 'Login successful!',
+          description: `Welcome back ${response.user.name || response.user.email}!`, // Use name from response
           variant: 'success',
           icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
         });
-        
-        navigate(from, { replace: true });
       } else {
-        throw new Error('Authentication failed: Invalid response from server');
+        // The register function in AuthContext already handles setting token and user
+        await authLogin(credentials.email, credentials.password); // Pass credentials to authLogin
+        toast({
+          title: 'Account created successfully!',
+          description: `Welcome ${response.user.name || response.user.email}!`, // Use name from response
+          variant: 'success',
+          icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
+        });
       }
+        
+      navigate(from, { replace: true });
     } catch (error: any) {
+      console.error('Login/Registration error:', error.message, error); // Log error message and full error in development
       // Extract more specific error messages from the backend
       let errorMessage = 'Something went wrong. Please try again.';
       if (error.response?.data?.errors && error.response.data.errors.length > 0) {
