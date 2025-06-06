@@ -24,6 +24,8 @@ const MONGODB_CONFIG = {
   }
 };
 
+import { BlogComment } from "./types";
+
 // API utility functions
 class ApiService {
   private baseUrl: string;
@@ -231,7 +233,7 @@ class ApiService {
   }
 
   async likeBlog(id: string) {
-    return this.request<{ likes: number }>(`/blogs/${id}/like`, {
+    return this.request<{ likes: string[]; isLiked: boolean }>(`/blogs/${id}/like`, {
       method: 'POST',
     });
   }
@@ -239,6 +241,13 @@ class ApiService {
   async deleteBlog(id: string) {
     return this.request<{ message: string }>(`/blogs/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async addComment(blogId: string, content: string) {
+    return this.request<{ comment: BlogComment }>(`/blogs/${blogId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
     });
   }
 }

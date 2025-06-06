@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { PenTool, BookOpen, Users, Award, Calendar, User, Trash2, Edit, Save, PlusCircle, Image as ImageIcon, X, ArrowLeft, ArrowRight } from 'lucide-react';
+import { PenTool, BookOpen, Users, Award, Calendar, User, Trash2, Edit, Save, PlusCircle, Image as ImageIcon, X, ArrowLeft, ArrowRight, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,6 +15,7 @@ import { apiService } from '../utils/api';
 import { getInitials } from '../utils/helpers';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Blog, User as UserType, BlogComment as CommentType } from '../types';
 
 interface WriterStats {
   storiesWritten: number;
@@ -23,26 +24,26 @@ interface WriterStats {
   featuredStories: number;
 }
 
-interface Story {
-  id: string;
-  title: string;
-  excerpt: string;
-  author: {
-    name: string;
-    avatar: string;
-  };
-  readTime: number;
-  publishedAt: string;
-  reads: number;
-  featured: boolean;
-}
+// interface Story {
+//   id: string;
+//   title: string;
+//   excerpt: string;
+//   author: {
+//     name: string;
+//     avatar: string;
+//   };
+//   readTime: number;
+//   publishedAt: string;
+//   reads: number;
+//   featured: boolean;
+// }
 
 const WritersCorner = () => {
   const { toast } = useToast();
   const { user, token, loading: authLoading } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentBlog, setCurrentBlog] = useState({
+  const [currentBlog, setCurrentBlog] = useState<Blog>({
     _id: '',
     title: '',
     subtitle: '',
@@ -52,8 +53,13 @@ const WritersCorner = () => {
     images: [],
     published: true,
     country: '',
+    likes: [],
+    comments: [],
+    author: { _id: user?._id || '', name: user?.name || '', avatar: user?.avatar || '' },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
-  const [myBlogs, setMyBlogs] = useState([]);
+  const [myBlogs, setMyBlogs] = useState<Blog[]>([]);
   const [newTag, setNewTag] = useState('');
   const [newImageLink, setNewImageLink] = useState('');
   const [isFetchingBlogs, setIsFetchingBlogs] = useState(false);
@@ -61,6 +67,7 @@ const WritersCorner = () => {
   const [isLiking, setIsLiking] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [commentContent, setCommentContent] = useState('');
 
   const getFullImageUrl = (path) => {
     if (!path) return '/images/placeholder.svg';
@@ -71,7 +78,7 @@ const WritersCorner = () => {
   };
 
   interface MyStoriesResponse {
-    blogs: any[];
+    blogs: Blog[];
     total: number;
     page: number;
   }
@@ -212,6 +219,11 @@ const WritersCorner = () => {
         images: [],
         published: true,
         country: '',
+        likes: [],
+        comments: [],
+        author: { _id: user?._id || '', name: user?.name || '', avatar: user?.avatar || '' },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
       fetchMyBlogs();
     } catch (err) {
@@ -227,12 +239,17 @@ const WritersCorner = () => {
     }
   };
 
-  const handleEdit = (blog) => {
+  const handleEdit = (blog: Blog) => {
     setIsEditing(true);
     setIsCreating(true);
     setCurrentBlog({
       ...blog,
       country: blog.country || '',
+      likes: blog.likes || [],
+      comments: blog.comments || [],
+      author: blog.author || { _id: user?._id || '', name: user?.name || '', avatar: user?.avatar || '' },
+      createdAt: blog.createdAt || new Date().toISOString(),
+      updatedAt: blog.updatedAt || new Date().toISOString(),
     });
   };
 
@@ -293,6 +310,37 @@ const WritersCorner = () => {
     }
   };
 
+  const handleAddComment = async (blogId) => {
+    if (!user || !token) {
+      toast({
+        title: 'Authentication Required',
+        description: 'You need to be logged in to add a comment.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const response = await apiService.addComment(blogId, commentContent);
+      setCurrentBlog((prev) => ({
+        ...prev,
+        comments: [...prev.comments, response.comment as unknown as CommentType],
+      }));
+      setCommentContent('');
+      toast({
+        title: 'Success',
+        description: 'Comment added successfully.',
+      });
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to add comment.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -309,7 +357,7 @@ const WritersCorner = () => {
             Share your travel stories and connect with fellow writers from around the world
           </p>
           <Button
-            onClick={() => { setIsCreating(true); setIsEditing(false); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true, country: '' }); setCurrentImageIndex(0); }}
+            onClick={() => { setIsCreating(true); setIsEditing(false); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true, country: '', likes: [], comments: [], author: { _id: user?._id || '', name: user?.name || '', avatar: user?.avatar || '' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); setCurrentImageIndex(0); }}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <PenTool className="w-4 h-4 mr-2" />
@@ -389,7 +437,7 @@ const WritersCorner = () => {
                 <Button type="button" onClick={() => handleSubmit(false)} disabled={isFetchingBlogs} variant="outline" className="border-border text-foreground hover:bg-accent hover:text-accent-foreground">
                   Save as Draft
                 </Button>
-                <Button type="button" onClick={() => { setIsCreating(false); setIsEditing(false); setNewImageLink(''); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true, country: '' }); }} variant="ghost">
+                <Button type="button" onClick={() => { setIsCreating(false); setIsEditing(false); setNewImageLink(''); setCurrentBlog({ _id: '', title: '', subtitle: '', content: '', excerpt: '', tags: [], images: [], published: true, country: '', likes: [], comments: [], author: { _id: user?._id || '', name: user?.name || '', avatar: user?.avatar || '' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); }} variant="ghost">
                   Cancel
                 </Button>
               </div>
@@ -423,7 +471,7 @@ const WritersCorner = () => {
                   <Link to={`/blogs/${blog._id}`}>
                     <BlogCard 
                       {...blog} 
-                      isLiked={user ? blog.likes.includes(user.id) : false} 
+                      isLiked={user ? blog.likes.includes(user._id) : false} 
                       onLikeToggle={handleLikeToggle} 
                     />
                   </Link>
@@ -503,7 +551,7 @@ const WritersCorner = () => {
                     </div>
                     <p className="text-foreground mt-1 text-sm">{comment.content}</p>
                   </div>
-                  {(user && user.id === currentBlog.author._id) && (
+                  {(user && user._id === comment.author._id) && (
                     <Button
                       variant="ghost"
                       size="sm"

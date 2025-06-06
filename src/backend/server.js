@@ -16,6 +16,7 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const helmet = require('helmet');
 const multer = require('multer');
+const crypto = require('crypto');
 
 // Load environment variables
 dotenv.config();
@@ -533,7 +534,6 @@ app.post('/api/auth/google', async (req, res) => {
           isGoogleUser: true,
           profilePicture: payload.picture,
           emailVerified: payload.email_verified || false,
-          refreshToken: jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' }),
         });
         
         await user.save({ session });
@@ -874,7 +874,7 @@ app.get('/api/blogs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/blogs', protect, upload.array('images', 5), [
+app.post('/api/blogs', protect, [
   body('title').notEmpty().withMessage('Title is required'),
   body('content').notEmpty().withMessage('Content is required'),
   body('excerpt').notEmpty().withMessage('Excerpt is required'),
@@ -917,7 +917,7 @@ app.post('/api/blogs', protect, upload.array('images', 5), [
   }
 });
 
-app.put('/api/blogs/:id', protect, upload.array('images', 5), [
+app.put('/api/blogs/:id', protect, [
   body('title').notEmpty().withMessage('Title is required'),
   body('content').notEmpty().withMessage('Content is required'),
   body('excerpt').notEmpty().withMessage('Excerpt is required'),
@@ -928,8 +928,7 @@ app.put('/api/blogs/:id', protect, upload.array('images', 5), [
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { title, subtitle, content, excerpt, tags, country, published } = req.body;
-  const newImages = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+  const { title, subtitle, content, excerpt, tags, country, published, images } = req.body;
 
   try {
     let blog = await Blog.findById(req.params.id);
@@ -943,10 +942,6 @@ app.put('/api/blogs/:id', protect, upload.array('images', 5), [
       return res.status(401).json({ message: 'User not authorized' });
     }
 
-    // Combine existing and new images
-    const currentImages = blog.images;
-    const updatedImages = Array.isArray(currentImages) ? [...currentImages, ...newImages] : newImages;
-
     // Parse tags safely
     const parsedTags = tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [];
 
@@ -956,7 +951,7 @@ app.put('/api/blogs/:id', protect, upload.array('images', 5), [
       content,
       excerpt: excerpt || content.substring(0, 150) + '...',
       tags: parsedTags,
-      images: updatedImages,
+      images: images || [],
       country,
       published: published === 'true',
       updatedAt: Date.now()

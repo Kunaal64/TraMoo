@@ -16,7 +16,7 @@ interface BlogCardProps {
   images?: string[];
   author: { name: string; avatar?: string; };
   createdAt: string;
-  readTime: number;
+  readTime?: number;
   tags: string[];
   likes: string[];
   comments: any[]; // Consider a more specific type if needed
@@ -76,10 +76,10 @@ const BlogCard: React.FC<BlogCardProps> = ({
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: index * 0.1 }}
-      className="group hover:scale-[1.02] transition-transform duration-300"
+      className="group hover:scale-[1.02] transition-transform duration-300 h-full flex flex-col"
     >
       <div
-        className={`glass rounded-2xl overflow-hidden border border-slate-200/50 dark:border-slate-800/50 shadow-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/20 dark:hover:shadow-black/20 ${isSearchResult ? 'border-primary' : ''}`}
+        className={`glass rounded-2xl overflow-hidden border border-slate-200/50 dark:border-slate-800/50 shadow-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/20 dark:hover:shadow-black/20 ${isSearchResult ? 'border-primary' : ''} flex-grow flex flex-col`}
       >
         <div className="relative h-48 overflow-hidden">
           <img
@@ -112,17 +112,17 @@ const BlogCard: React.FC<BlogCardProps> = ({
           </motion.button>
         </div>
         
-        <div className="p-6 cursor-pointer" onClick={onCardClick}>
+        <div className="p-6 cursor-pointer flex flex-col flex-grow" onClick={onCardClick}>
           <h3 className={`text-xl font-bold text-slate-900 dark:text-slate-100 mb-2 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-all duration-300 ${
             isSearchResult ? 'gradient-text-hero' : ''
           }`}>
             {title}
           </h3>
           {subtitle && (
-            <p className="text-slate-600 dark:text-slate-400 text-sm mb-3">{subtitle}</p>
+            <p className="text-slate-600 dark:text-slate-400 text-sm mb-3 line-clamp-2">{subtitle}</p>
           )}
           
-          <p className="text-slate-600 dark:text-slate-400 mb-4 line-clamp-3 font-medium">
+          <p className="text-slate-600 dark:text-slate-400 mb-4 line-clamp-3 font-medium flex-grow">
             {excerpt}
           </p>
           
