@@ -13,7 +13,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (userData: Partial<User>) => Promise<void>;
   token: string | null;
-  googleLogin: (userData: { user: User; token: string; refreshToken: string }) => void;
+  googleLogin: (userData: { user: User; token: string; refreshToken?: string }) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -117,10 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const googleLogin = (userData: { user: User; token: string; refreshToken: string }) => {
+  const googleLogin = (userData: { user: User; token: string; refreshToken?: string }) => {
     localStorage.setItem('token', userData.token);
     localStorage.setItem('user', JSON.stringify(userData.user));
-    localStorage.setItem('refreshToken', userData.refreshToken);
+    localStorage.setItem('refreshToken', userData.refreshToken || '');
     setUser(userData.user);
     toast({
       title: 'Google Login Successful',

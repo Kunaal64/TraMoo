@@ -354,6 +354,7 @@ const ChatMessageSchema = new mongoose.Schema({
   sender: { type: String, required: true }, // 'user' or 'bot'
   message: { type: String, required: true },
   timestamp: { type: Date, default: Date.now }, // Changed back to Date type
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Add userId
 });
 
 const User = mongoose.model('User', UserSchema);
@@ -1099,7 +1100,8 @@ app.get('/api/chat/history/:chatSessionId', protect, cacheMiddleware, async (req
   }
 
   try {
-    let messages = await ChatMessage.find({ chatSessionId }).sort({ timestamp: 1 });
+    // Fetch messages for the specific chatSessionId and userId
+    let messages = await ChatMessage.find({ chatSessionId, userId }).sort({ timestamp: 1 });
 
     // If no messages and it's a new session, send a welcome message from the bot
     if (messages.length === 0) {
@@ -1109,6 +1111,7 @@ app.get('/api/chat/history/:chatSessionId', protect, cacheMiddleware, async (req
         sender: 'bot',
         message: welcomeMessageText,
         timestamp: new Date(),
+        userId, // Associate welcome message with userId
       });
       await newWelcomeMessage.save();
       messages = [newWelcomeMessage]; // Set messages to contain only the welcome message
@@ -1168,6 +1171,7 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
         sender: 'bot',
         message: 'AI features are currently unavailable. Please try again later or contact support.',
         timestamp: new Date(),
+        userId,
       });
       await botMessage.save();
       
@@ -1246,6 +1250,7 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
       sender: 'bot',
       message: geminiResponseText,
       timestamp: new Date(),
+      userId,
     });
     
     try {
@@ -1276,6 +1281,7 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
       sender: 'bot',
       message: errorMessage,
       timestamp: new Date(),
+      userId,
     });
     
     try {
@@ -1300,14 +1306,24 @@ app.post('/api/chat/message', protect, rateLimiter, cacheMiddleware, async (req,
 
 app.delete('/api/chat/history/:chatSessionId', protect, async (req, res) => {
   const { chatSessionId } = req.params;
+  const userId = req.user; // Get userId from protect middleware
+
+  console.log(`Attempting to clear chat history for session: ${chatSessionId} by user: ${userId}`);
 
   if (!chatSessionId) {
     return res.status(400).json({ success: false, message: 'chatSessionId is required' });
   }
 
   try {
-    await ChatMessage.deleteMany({ chatSessionId });
-    responseCache.del(req.originalUrl); // Invalidate cache for this session
+    // Ensure that only the owner of the chat session can delete it
+    const deleteResult = await ChatMessage.deleteMany({ chatSessionId, userId });
+    console.log(`Delete operation result for session ${chatSessionId}:`, deleteResult);
+
+    if (deleteResult.deletedCount === 0) {
+      console.warn(`No chat messages found or deleted for session: ${chatSessionId} for user: ${userId}.`);
+    }
+
+    responseCache.delete(req.originalUrl); // Invalidate cache for this session
     res.status(200).json({ success: true, message: 'Chat history cleared successfully' });
     const user = await User.findById(req.user);
     console.log(`Chat history deleted for user: ${user ? user.name : 'Unknown User'} (Session: ${chatSessionId})`);
