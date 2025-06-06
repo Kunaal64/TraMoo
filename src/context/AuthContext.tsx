@@ -167,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       );
       setUser(response.data.user);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       toast({
         title: 'Profile Updated',
         description: 'Your profile information has been successfully updated.',
