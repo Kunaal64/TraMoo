@@ -276,41 +276,43 @@ const Profile = () => {
               </div>
 
               {/* Password Change Section - Conditionally rendered */}
-              <div className="border-t border-border/50 pt-6 mt-6">
-                <h3 className="text-xl font-bold text-foreground mb-4">Change Password</h3>
-                <div>
-                  <Label htmlFor="currentPassword" className="block text-foreground text-sm font-bold mb-2">Current Password</Label>
-                  <Input
-                    type="password"
-                    id="currentPassword"
-                    name="currentPassword"
-                    value={formData.currentPassword}
-                    onChange={handleInputChange}
-                    className="glass-input p-3 text-base"
-                    disabled={user?.isGoogleUser} // Disable if Google user
-                  />
+              {user && !user.isGoogleUser && user.email !== 'demo@tramoo.com' && (
+                <div className="border-t border-border/50 pt-6 mt-6">
+                  <h3 className="text-xl font-bold text-foreground mb-4">Change Password</h3>
+                  <div>
+                    <Label htmlFor="currentPassword" className="block text-foreground text-sm font-bold mb-2">Current Password</Label>
+                    <Input
+                      type="password"
+                      id="currentPassword"
+                      name="currentPassword"
+                      value={formData.currentPassword}
+                      onChange={handleInputChange}
+                      className="glass-input p-3 text-base"
+                      disabled={user?.isGoogleUser} // Disable if Google user
+                    />
+                  </div>
+                  {isCurrentPasswordVerified && user && !user.isGoogleUser && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      transition={{ duration: 0.3, ease: 'easeOut' }}
+                      className="space-y-4 mt-4"
+                    >
+                      <div>
+                        <Label htmlFor="newPassword" className="block text-foreground text-sm font-bold mb-2">New Password</Label>
+                        <Input type="password" id="newPassword" name="newPassword" value={formData.newPassword} onChange={handleInputChange} className="glass-input p-3 text-base" />
+                      </div>
+                      <div>
+                        <Label htmlFor="confirmNewPassword" className="block text-foreground text-sm font-bold mb-2">Confirm New Password</Label>
+                        <Input type="password" id="confirmNewPassword" name="confirmNewPassword" value={formData.confirmNewPassword} onChange={handleInputChange} className="glass-input p-3 text-base" />
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
-                {isCurrentPasswordVerified && user && !user.isGoogleUser && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    transition={{ duration: 0.3, ease: 'easeOut' }}
-                    className="space-y-4 mt-4"
-                  >
-                    <div>
-                      <Label htmlFor="newPassword" className="block text-foreground text-sm font-bold mb-2">New Password</Label>
-                      <Input type="password" id="newPassword" name="newPassword" value={formData.newPassword} onChange={handleInputChange} className="glass-input p-3 text-base" />
-                    </div>
-                    <div>
-                      <Label htmlFor="confirmNewPassword" className="block text-foreground text-sm font-bold mb-2">Confirm New Password</Label>
-                      <Input type="password" id="confirmNewPassword" name="confirmNewPassword" value={formData.confirmNewPassword} onChange={handleInputChange} className="glass-input p-3 text-base" />
-                    </div>
-                  </motion.div>
-                )}
-                {user?.isGoogleUser && formData.currentPassword.length > 0 && (
-                  <p className="text-sm text-yellow-500 mt-2">Google users cannot change password directly.</p>
-                )}
-              </div>
+              )}
+              {user?.isGoogleUser && formData.currentPassword.length > 0 && (
+                <p className="text-sm text-yellow-500 mt-2">Google users cannot change password directly.</p>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-4 mt-6">
                 <Button type="submit" disabled={isSaving} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3">
@@ -331,7 +333,23 @@ const Profile = () => {
             
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground text-lg py-3 px-6">
+                <Button
+                  variant="destructive"
+                  disabled={isDeleting}
+                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground text-lg py-3 px-6"
+                  onClick={(e) => {
+                    if (user?.email === 'demo@tramoo.com') {
+                      e.preventDefault(); // Prevent AlertDialog from opening
+                      toast({
+                        title: "Goliii... beta MASTIII Nahiiii... ❤️", // Combined text and emoji with proper spacing
+                        duration: 3000,
+                      });
+                    } else {
+                      // For non-demo users, allow the AlertDialog to proceed
+                      // The AlertDialogTrigger will handle opening the dialog
+                    }
+                  }}
+                >
                   <Trash2 size={20} className="mr-2" />
                   {isDeleting ? 'Deleting...' : 'Delete Account'}
                 </Button>

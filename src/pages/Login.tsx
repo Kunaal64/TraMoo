@@ -31,6 +31,7 @@ interface FormData {
 const Login = () => {
   const [isLogin, setIsLogin] = useState(false); // Set to false to show Create Account by default
   const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordDisabled, setIsPasswordDisabled] = useState(false); // New state to control password field
   const [formData, setFormData] = useState<FormData>({ 
     name: '', 
     email: '', 
@@ -201,6 +202,20 @@ const Login = () => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleDemoLogin = async () => {
+    setIsLogin(true); // Switch to login mode (Welcome Back page)
+    setFormData({
+      name: '', // Name is not needed for login, clear it if in create account mode
+      email: 'demo@tramoo.com',
+      password: 'demo',
+    });
+    setIsPasswordDisabled(true); // Disable password field for demo
+    setIsLoading(false); // Stop loading animation immediately after filling form
+
+    // Removed auto-login logic here. User needs to click 'Sign In' button.
+    // navigate(from, { replace: true }); // No automatic navigation
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 radial-glow">
       <motion.div
@@ -227,7 +242,7 @@ const Login = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="mt-6 space-y-6 glass p-8 rounded-2xl shadow-lg"
+          className="mt-6 space-y-6 glass p-8 rounded-2xl shadow-lg overflow-y-auto max-h-[calc(100vh-100px)]"
           onSubmit={handleSubmit}
         >
           <div className="space-y-5">
@@ -282,19 +297,22 @@ const Login = () => {
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   required
+                  disabled={isPasswordDisabled} // Disable password field if it's a demo account
                   className="pl-10 pr-10 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleInputChange}
                 />
-                <button
-                  type="button"
-                  className="absolute right-3 top-3 h-5 w-5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label="Toggle password visibility"
-                >
-                  {showPassword ? <EyeOff /> : <Eye />}
-                </button>
+                {!isPasswordDisabled && (
+                  <button
+                    type="button"
+                    className="absolute right-3 top-3 h-5 w-5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -313,7 +331,7 @@ const Login = () => {
                 <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
               </div>
               <div className="relative flex justify-center">
-                <span className="px-3 text-sm font-medium text-slate-400 dark:text-slate-500">
+                <span className="px-3 text-sm font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 rounded-lg">
                   Or continue with
                 </span>
               </div>
@@ -350,11 +368,20 @@ const Login = () => {
                 <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
               </div>
               <div className="relative flex justify-center">
-                <span className="px-3 text-sm font-medium text-slate-400 dark:text-slate-500">
+                <span className="px-3 text-sm font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 rounded-lg">
                   or
                 </span>
               </div>
             </div>
+
+            {/* Demo Login Button */}
+            <Button
+              type="button"
+              onClick={handleDemoLogin}
+              className="w-full bg-gradient-to-r from-green-600 to-green-700 dark:from-green-400 dark:to-green-500 text-white dark:text-black hover:from-green-700 hover:to-green-800 dark:hover:from-green-500 dark:hover:to-green-600 transition-colors duration-200 rounded-xl py-2 shadow-lg"
+            >
+              Try Demo Account
+            </Button>
           </div>
 
           <div className="text-center pt-2">
