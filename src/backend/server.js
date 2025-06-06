@@ -318,6 +318,7 @@ const UserSchema = new mongoose.Schema({
   lastActive: { type: Date, default: Date.now },
   isGoogleUser: { type: Boolean, default: false },
   refreshToken: { type: String },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
 });
 
 UserSchema.index({ email: 1 }); // Index on email for faster lookups
