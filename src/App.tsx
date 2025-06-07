@@ -20,6 +20,8 @@ import BlogDetail from './pages/BlogDetail';
 import LikedBlogs from './pages/LikedBlogs';
 import NotFound from './pages/NotFound';
 import Profile from './pages/Profile';
+import AdminPanel from './pages/AdminPanel';
+import EditBlog from './pages/EditBlog';
 
 const queryClient = new QueryClient();
 
@@ -41,6 +43,11 @@ const App = () => {
                     <Route index element={<Home />} />
                     <Route path="blogs" element={<Blogs />} />
                     <Route path="blogs/:id" element={<BlogDetail />} />
+                    <Route path="edit-blog/:id" element={
+                      <ProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <EditBlog />
+                      </ProtectedRoute>
+                    } />
                     <Route path="liked-blogs" element={
                       <ProtectedRoute>
                         <LikedBlogs />
@@ -54,6 +61,11 @@ const App = () => {
                     <Route path="profile" element={
                       <ProtectedRoute>
                         <Profile />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="admin" element={
+                      <ProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <AdminPanel />
                       </ProtectedRoute>
                     } />
                     <Route path="*" element={<NotFound />} />

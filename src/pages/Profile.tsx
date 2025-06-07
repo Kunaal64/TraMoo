@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '../context/AuthContext';
 import { User as UserIcon, Mail, MapPin, Info, Save, XCircle, Trash2, Edit, HeartCrack } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { apiService } from '../utils/api';
 import { getInitials } from '../utils/helpers';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -244,17 +244,27 @@ const Profile = () => {
             </div>
           </div>
 
+          {!editMode && (
+            <div className="flex justify-center gap-4 mt-4">
+              <Button onClick={() => setEditMode(true)} className="flex items-center gap-2">
+                <Edit size={18} /> Edit Profile
+              </Button>
+              {(user?.role === 'admin' || user?.role === 'owner') && (
+                <Link to="/admin">
+                  <Button className="flex items-center gap-2">
+                    Admin's Space
+                  </Button>
+                </Link>
+              )}
+            </div>
+          )}
+
           {!editMode ? (
             <div className="space-y-6 text-foreground mt-8 p-6 bg-card rounded-xl shadow-inner border border-border/50">
               <div className="flex items-center gap-3 text-lg"><UserIcon size={22} className="text-primary" /> <span className="font-semibold">Name:</span> {user.name}</div>
               <div className="flex items-center gap-3 text-lg"><Mail size={22} className="text-primary" /> <span className="font-semibold">Email:</span> {user.email}</div>
               {user.country && <div className="flex items-center gap-3 text-lg"><MapPin size={22} className="text-primary" /> <span className="font-semibold">Country:</span> {user.country}</div>}
               {user.bio && <div className="flex items-start gap-3 text-lg"><Info size={22} className="text-primary mt-1" /> <span className="font-semibold">Bio:</span> <p className="break-words flex-1 text-base leading-relaxed">{user.bio}</p></div>}
-
-              <Button onClick={() => setEditMode(true)} className="mt-8 w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3">
-                <Edit size={20} className="mr-2" />
-                Edit Profile
-              </Button>
             </div>
           ) : (
             <form onSubmit={handleSaveProfile} className="space-y-6 mt-8 p-6 bg-card rounded-xl shadow-inner border border-border/50">

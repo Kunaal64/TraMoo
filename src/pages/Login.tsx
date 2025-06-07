@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, User, Mail, Lock, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { apiService } from '@/utils/api';
 import { TOAST_REMOVE_DELAY } from '@/hooks/use-toast';
+import { User as AppUser } from '@/types';
 
 interface GoogleAuthResponse {
   success: boolean;
@@ -38,21 +39,18 @@ const Login = () => {
     password: '' 
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [loginComplete, setLoginComplete] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login: authLogin, googleLogin } = useAuth();
+  const { login: authLogin, googleLogin, user } = useAuth();
   const from = location.state?.from?.pathname || '/';
 
-  interface GoogleAuthResponse {
-    token: string;
-    user: {
-      email: string;
-      name?: string;
-      id: string;
-    };
-    status?: number;
-  }
+  useEffect(() => {
+    if (loginComplete && user) {
+      navigate(from, { replace: true });
+    }
+  }, [loginComplete, user, navigate, from]);
 
   const handleGoogleAuth = async (credentialResponse: CredentialResponse) => {
     if (!credentialResponse.credential) {
@@ -65,51 +63,28 @@ const Login = () => {
     }
 
     setIsLoading(true);
-    
+
     try {
-      // Send the credential to our backend for verification
-      const response = await apiService.request<GoogleAuthResponse>('/auth/google', {
+      const response = await apiService.request<{ user: AppUser; token: string; refreshToken?: string }>('/auth/google', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           credential: credentialResponse.credential,
         })
       });
-      
-      if (response && response.token && response.user) {
-        // Ensure required user fields are present
-        const userData = {
-          ...response.user,
-          _id: response.user.id, // Map id to _id for the User type
-          name: response.user.name || response.user.email.split('@')[0], // Ensure name is always defined
-          email: response.user.email,
-          isGoogleUser: true
-        };
 
-        // Use the auth context to handle the login
-        googleLogin({
-          user: userData,
-          token: response.token,
-          refreshToken: '' // Ensure refreshToken is explicitly provided
-        });
-        
+      if (response && response.user && response.token) {
+        authLogin(response);
         toast({
           title: 'Login Successful',
-          description: 'You have successfully logged in with Google!',
+          description: `Welcome, ${response.user.name}!`,
           duration: TOAST_REMOVE_DELAY,
         });
-        
-        // Redirect to the home page or the page the user was trying to access
-        navigate(from, { replace: true });
+        setLoginComplete(true);
       } else {
-        throw new Error('Invalid response from server');
+        throw new Error('Invalid response from server during Google login.');
       }
     } catch (error: any) {
-      // console.error('Google login error:', error); // Removed sensitive logging
       const errorMessage = error.response?.data?.message || 'Google login failed. Please try again.';
-
       toast({
         title: 'Error',
         description: errorMessage,
@@ -143,39 +118,26 @@ const Login = () => {
       const method = 'POST';
       const body = JSON.stringify(credentials);
 
-      const response = await apiService.request<{ user: any; token: string; refreshToken: string }>( // Expect refresh token in response
+      const response = await apiService.request<{ user: AppUser; token: string; refreshToken: string }>(
         endpoint,
         {
           method,
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body,
         }
       );
 
-      // Use the auth context to handle the login/registration state update and token storage
-      if (isLogin) {
-        // The authLogin function in AuthContext already handles setting token and user
-        await authLogin(credentials.email, credentials.password); // Pass credentials to authLogin
+      if (response && response.user && response.token) {
+        authLogin(response);
         toast({
-          title: 'Login successful!',
-          description: `Welcome back ${response.user.name || response.user.email}!`, // Use name from response
+          title: isLogin ? 'Login successful!' : 'Account created successfully!',
+          description: `Welcome ${response.user.name || response.user.email}!`,
           variant: 'success',
           icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
         });
+        setLoginComplete(true);
       } else {
-        // The register function in AuthContext already handles setting token and user
-        await authLogin(credentials.email, credentials.password); // Pass credentials to authLogin
-        toast({
-          title: 'Account created successfully!',
-          description: `Welcome ${response.user.name || response.user.email}!`, // Use name from response
-          variant: 'success',
-          icon: <CheckCircle className="h-5 w-5 text-[hsl(var(--success-foreground))]" />
-        });
+        throw new Error('Invalid response from server.');
       }
-        
-      navigate(from, { replace: true });
     } catch (error: any) {
       // console.error('Login/Registration error:', error.message, error); // Removed sensitive logging
       // Extract more specific error messages from the backend

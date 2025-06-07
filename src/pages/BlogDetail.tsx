@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Markdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ const BlogDetail = () => {
   const { id } = useParams();
   const { toast } = useToast();
   const { user, token } = useAuth();
+  const navigate = useNavigate();
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -173,6 +174,32 @@ const BlogDetail = () => {
     }
   };
 
+  const handleDeleteBlog = async () => {
+    if (!user || !token || !blog?._id) {
+      toast({
+        title: 'Authentication Required',
+        description: 'You need to be logged in to delete a post.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      await apiService.deleteBlog(blog._id);
+      toast({
+        title: 'Success',
+        description: 'Blog post deleted successfully.',
+      });
+      navigate('/blogs');
+    } catch (err) {
+      console.error('Error deleting blog post:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete blog post.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-slate-600 dark:text-slate-400">Loading blog post...</div>;
   }
@@ -223,8 +250,18 @@ const BlogDetail = () => {
             </div>
           )}
 
-          <h1 className="text-5xl font-extrabold text-foreground mb-3 leading-tight">{blog.title}</h1>
-          {blog.subtitle && <h2 className="text-2xl text-muted-foreground mb-6 font-medium">{blog.subtitle}</h2>}
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-5xl font-extrabold text-foreground mb-3 leading-tight">{blog.title}</h1>
+              {blog.subtitle && <h2 className="text-2xl text-muted-foreground mb-6 font-medium">{blog.subtitle}</h2>}
+            </div>
+            {(user?._id === blog.author?._id || user?.role === 'admin' || user?.role === 'owner') && (
+              <div className="flex gap-2">
+                <Button onClick={() => navigate(`/edit-blog/${blog._id}`)} variant="outline">Edit</Button>
+                <Button onClick={handleDeleteBlog} variant="destructive">Delete</Button>
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-wrap items-center gap-6 text-base text-muted-foreground mb-8 border-b border-border pb-4">
             <div className="flex items-center gap-2">
@@ -275,39 +312,23 @@ const BlogDetail = () => {
                 blog.comments
                   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                   .map((comment) => (
-                    <motion.div
-                      key={comment._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="flex items-start space-x-4 p-4 rounded-lg bg-card border border-border shadow-sm"
-                    >
-                      <div className="flex-shrink-0">
-                        <Avatar className="w-10 h-10">
-                          <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg dark:bg-primary-foreground dark:text-primary">{getInitials(comment.author?.name || 'Unknown')}</AvatarFallback>
-                        </Avatar>
-                      </div>
-                      <div className="flex-grow">
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="font-semibold text-foreground">{comment.author?.name || 'Unknown User'}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
+                    <div key={comment._id} className="flex items-start p-4 border-b border-border last:border-b-0">
+                      <Avatar className="h-10 w-10 mr-4">
+                        <AvatarFallback className="bg-primary text-primary-foreground">{getInitials(comment.author?.name || 'A')}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center">
+                          <p className="font-semibold text-foreground">{comment.author?.name || 'Anonymous'}</p>
+                          {(user?._id === comment.author?._id || user?.role === 'admin' || user?.role === 'owner') && (
+                            <Button onClick={() => handleDeleteComment(comment._id)} variant="ghost" size="sm">
+                              <Trash2 size={16} />
+                            </Button>
+                          )}
                         </div>
-                        <p className="text-foreground mt-1">{comment.content}</p>
-                        {user && user._id === comment.author?._id && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteComment(comment._id)}
-                            className="ml-auto mt-2 text-xs py-1 px-2 rounded-md transition-all duration-200 flex items-center gap-1 text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 size={12} />
-                            Delete
-                          </Button>
-                        )}
+                        <p className="text-sm text-muted-foreground">{new Date(comment.createdAt).toLocaleString()}</p>
+                        <p className="mt-2 text-foreground">{comment.content}</p>
                       </div>
-                    </motion.div>
+                    </div>
                   ))
               )}
             </div>

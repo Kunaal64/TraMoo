@@ -145,6 +145,50 @@ const protect = (req, res, next) => {
   }
 };
 
+const adminProtect = async (req, res, next) => {
+  let token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const user = await User.findById(decoded.id);
+      if (user && (user.role === 'admin' || user.role === 'owner')) {
+        req.user = decoded.id;
+        next();
+      } else {
+        res.status(403).json({ message: 'Not authorized as an admin' });
+      }
+    } catch (error) {
+      return res.status(401).json({ message: 'Not authorized, token failed' });
+    }
+  }
+  if (!token) {
+    return res.status(401).json({ message: 'Not authorized, no token' });
+  }
+};
+
+const ownerProtect = async (req, res, next) => {
+  let token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const user = await User.findById(decoded.id);
+      if (user && user.role === 'owner') {
+        req.user = decoded.id;
+        next();
+      } else {
+        res.status(403).json({ message: 'Not authorized as an owner' });
+      }
+    } catch (error) {
+      return res.status(401).json({ message: 'Not authorized, token failed' });
+    }
+  }
+  if (!token) {
+    return res.status(401).json({ message: 'Not authorized, no token' });
+  }
+};
+
 // CORS configuration
 const allowedOrigins = [
   // Production
@@ -243,6 +287,7 @@ app.use((req, res, next) => {
   res.header('X-Content-Type-Options', 'nosniff');
   res.header('X-Frame-Options', 'DENY');
   res.header('X-XSS-Protection', '1; mode=block');
+  res.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   
   next();
 });
@@ -309,6 +354,7 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  role: { type: String, enum: ['user', 'admin', 'owner'], default: 'user' },
   bio: { type: String, default: '' },
   country: { type: String, default: '' },
   countriesExplored: { type: Number, default: 0 },
@@ -364,6 +410,32 @@ const User = mongoose.model('User', UserSchema);
 const Blog = mongoose.model('Blog', BlogSchema);
 const ChatMessage = mongoose.model('ChatMessage', ChatMessageSchema);
 
+// Create or update owner user
+const createOwner = async () => {
+  try {
+    const ownerEmail = 'owner@gmail.com';
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash('owner', salt);
+
+    await User.findOneAndUpdate(
+      { email: ownerEmail },
+      {
+        $set: {
+          name: 'owner',
+          password: hashedPassword,
+          role: 'owner',
+        },
+      },
+      { upsert: true, new: true }
+    );
+    console.log('Owner user configured.');
+  } catch (error) {
+    console.error('Error configuring owner user:', error);
+  }
+};
+
+createOwner();
+
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -407,12 +479,12 @@ app.post('/api/auth/register', [
 
     await user.save();
 
-    const token = generateToken(user.id);
-    const refreshToken = jwt.sign({ id: user.id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    const token = generateToken(user._id);
+    const refreshToken = jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
     user.refreshToken = refreshToken;
     await user.save();
 
-    res.status(201).json({ user: { id: user.id, name: user.name, email: user.email }, token, refreshToken });
+    res.status(201).json({ user: { _id: user._id, name: user.name, email: user.email, role: user.role }, token, refreshToken });
     console.log(`New user registered: ${user.name} (${user.email})`);
   } catch (error) {
     console.error(error); // Keep this error log
@@ -439,12 +511,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid Credentials' });
     }
 
-    const token = generateToken(user.id);
-    const refreshToken = jwt.sign({ id: user.id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    const token = generateToken(user._id);
+    const refreshToken = jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
     user.refreshToken = refreshToken;
     await user.save();
 
-    res.json({ user: { id: user.id, name: user.name, email: user.email }, token, refreshToken });
+    res.json({ user: { _id: user._id, name: user.name, email: user.email, role: user.role }, token, refreshToken });
     console.log(`Existing user logged in: ${user.name} (${user.email})`);
   } catch (error) {
     console.error(error); // Keep this error log
@@ -561,7 +633,7 @@ app.post('/api/auth/google', async (req, res) => {
 
       // Prepare user data for response
       const userData = {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         isGoogleUser: user.isGoogleUser,
@@ -634,35 +706,21 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-app.get('/api/auth/logout', protect, async (req, res) => {
-  try {
-    const user = await User.findById(req.user);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    // In a real application, you might invalidate the token on the server-side
-    // For JWTs, this often means relying on client-side token deletion and expiration.
-    res.status(200).json({ message: 'Logged out successfully' });
-    console.log(`User logged out: ${user.name} (${user.email})`);
-  } catch (error) {
-    console.error(error); // Keep this error log
-    res.status(500).json({ message: 'Server error during logout' });
-  }
+app.post('/api/auth/logout', (req, res) => {
+  // In a stateless JWT setup, the client is responsible for destroying the token.
+  // This endpoint is here to support the logout flow but doesn't need to do anything on the server.
+  res.status(200).json({ message: 'Logged out successfully' });
 });
 
 app.get('/api/auth/me', protect, async (req, res) => {
   try {
-    console.log('Received request for /api/auth/me. User ID from token:', req.user);
     const user = await User.findById(req.user).select('-password');
     if (!user) {
-      console.log('User not found for ID:', req.user);
       return res.status(404).json({ message: 'User not found' });
     }
-    console.log('Successfully fetched user for /api/auth/me:', user.email);
-    res.json({ user }); // Wrap the user object in a 'user' key
+    res.json({ user });
   } catch (error) {
-    console.error('Error in /api/auth/me:', error); // Keep this error log
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -706,8 +764,13 @@ app.put('/api/auth/update', protect, async (req, res) => {
     await user.save();
 
     res.json({
-      message: 'Profile updated successfully',
-      user: { id: user._id, name: user.name, email: user.email, bio: user.bio, country: user.country }
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      bio: user.bio,
+      country: user.country,
+      isGoogleUser: user.isGoogleUser,
     });
   } catch (error) {
     console.error('Error updating profile:', error);
@@ -937,8 +1000,9 @@ app.put('/api/blogs/:id', protect, [
       return res.status(404).json({ message: 'Blog not found' });
     }
 
-    // Ensure author matches
-    if (blog.author.toString() !== req.user) {
+    // Ensure author matches or user is admin/owner
+    const user = await User.findById(req.user);
+    if (blog.author.toString() !== req.user && user.role !== 'admin' && user.role !== 'owner') {
       return res.status(401).json({ message: 'User not authorized' });
     }
 
@@ -958,9 +1022,9 @@ app.put('/api/blogs/:id', protect, [
     }, { new: true });
 
     res.json(updatedBlog);
-    const user = await User.findById(req.user);
+    const updatedUser = await User.findById(req.user);
     const action = updatedBlog.published ? 'edited' : 'draft saved';
-    console.log(`Blog ${action}: "${updatedBlog.title}" by ${user ? user.name : 'Unknown User'}`);
+    console.log(`Blog ${action}: "${updatedBlog.title}" by ${updatedUser ? updatedUser.name : 'Unknown User'}`);
   } catch (error) {
     console.error(error); // Keep this error log
     res.status(500).json({ message: 'Server error' });
@@ -975,7 +1039,9 @@ app.delete('/api/blogs/:id', protect, async (req, res) => {
       return res.status(404).json({ message: 'Blog not found' });
     }
 
-    if (blog.author.toString() !== req.user) {
+    // Ensure author matches or user is admin/owner
+    const user = await User.findById(req.user);
+    if (blog.author.toString() !== req.user && user.role !== 'admin' && user.role !== 'owner') {
       return res.status(401).json({ message: 'User not authorized' });
     }
 
@@ -990,8 +1056,8 @@ app.delete('/api/blogs/:id', protect, async (req, res) => {
     await Blog.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Blog removed' });
-    const user = await User.findById(req.user);
-    console.log(`Blog deleted: "${blog.title}" by ${user ? user.name : 'Unknown User'}`);
+    const deletedByUser = await User.findById(req.user);
+    console.log(`Blog deleted: "${blog.title}" by ${deletedByUser ? deletedByUser.name : 'Unknown User'}`);
   } catch (error) {
     console.error(error); // Keep this error log
     res.status(500).json({ message: 'Server error' });
@@ -1083,8 +1149,9 @@ app.delete('/api/blogs/:id/comments/:commentId', protect, async (req, res) => {
       return res.status(404).json({ message: 'Comment not found' });
     }
 
-    // Check if the authenticated user is the author of the comment
-    if (comment.author.toString() !== userId) {
+    // Check if the authenticated user is the author of the comment or an admin/owner
+    const user = await User.findById(userId);
+    if (comment.author.toString() !== userId && user.role !== 'admin' && user.role !== 'owner') {
       return res.status(401).json({ message: 'User not authorized to delete this comment' });
     }
 
@@ -1093,8 +1160,8 @@ app.delete('/api/blogs/:id/comments/:commentId', protect, async (req, res) => {
     await blog.save();
 
     res.status(200).json({ message: 'Comment deleted successfully' });
-    const user = await User.findById(req.user);
-    console.log(`Comment deleted from blog: "${blog.title}" by ${user ? user.name : 'Unknown User'}`);
+    const deletedByUserComment = await User.findById(req.user);
+    console.log(`Comment deleted from blog: "${blog.title}" by ${deletedByUserComment ? deletedByUserComment.name : 'Unknown User'}`);
   } catch (error) {
     console.error(error); // Keep this error log
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -1372,6 +1439,62 @@ app.post('/api/auth/refresh', async (req, res) => {
   } catch (error) {
     console.error('Token refresh error:', error);
     res.status(403).json({ message: 'Invalid or expired Refresh Token' });
+  }
+});
+
+// Admin Routes
+app.get('/api/users', adminProtect, async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.put('/api/users/:id/make-admin', adminProtect, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (user) {
+      user.role = 'admin';
+      await user.save();
+      res.json({ message: 'User is now an admin' });
+    } else {
+      res.status(404).json({ message: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Error making user admin:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.put('/api/users/:id/remove-admin', ownerProtect, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (user) {
+      user.role = 'user';
+      await user.save();
+      res.json({ message: 'Admin role removed' });
+    } else {
+      res.status(404).json({ message: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Error removing admin role:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/api/users/profile/:userId', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user profile:', error); // Keep this for debugging
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
