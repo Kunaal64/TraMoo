@@ -40,6 +40,10 @@ const EditBlog = () => {
     setBlog({ ...blog, [name]: value });
   };
 
+  const handleImageLinkChange = (e) => {
+    setBlog({ ...blog, images: [e.target.value] });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -82,6 +86,10 @@ const EditBlog = () => {
             <div>
               <Label htmlFor="content">Content</Label>
               <Textarea id="content" name="content" value={blog.content} onChange={handleInputChange} rows={10} />
+            </div>
+            <div>
+              <Label htmlFor="image">Blog Image URL</Label>
+              <Input id="image" name="image" type="text" value={blog.images ? blog.images[0] : ''} onChange={handleImageLinkChange} />
             </div>
             <Button type="submit">Save Changes</Button>
           </div>

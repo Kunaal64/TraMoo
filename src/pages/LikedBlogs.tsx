@@ -55,11 +55,19 @@ const LikedBlogs = () => {
     }
     try {
       const response = await apiService.likeBlog(blogId);
-      setLikedBlogs(prevBlogs => 
-        prevBlogs.map(blog => 
-          blog._id === blogId ? { ...blog, likes: response.likes } : blog
-        ).filter(blog => Array.isArray(blog.likes) && user && blog.likes.includes(user.id)) // Filter out unliked blogs
-      );
+      if (!response.isLiked) {
+        setLikedBlogs(prevBlogs => prevBlogs.filter(blog => blog._id !== blogId));
+        toast({
+          title: 'Unliked',
+          description: 'The blog has been removed from your favourites.',
+        });
+      } else {
+        setLikedBlogs(prevBlogs => 
+          prevBlogs.map(blog => 
+            blog._id === blogId ? { ...blog, likes: response.likes } : blog
+          )
+        );
+      }
     } catch (err) {
       toast({
         title: 'Error',
@@ -149,7 +157,7 @@ const LikedBlogs = () => {
                     <BlogCard 
                       {...blog} 
                       index={index} 
-                      isLiked={user ? (Array.isArray(blog.likes) && blog.likes.includes(user.id)) : false}
+                      isLiked={user ? (Array.isArray(blog.likes) && blog.likes.includes(user._id)) : false}
                       onLikeToggle={handleLikeToggle}
                       onCardClick={() => navigate(`/blogs/${blog._id}`)}
                     />

@@ -14,24 +14,38 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { SheetClose } from '@/components/ui/sheet';
 import { NavLink } from 'react-router-dom';
+import { useToast } from '@/components/ui/use-toast';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const { isSearchOpen, setIsSearchOpen, setSearchQuery } = useSearch();
+  const { toast } = useToast();
 
-  // Debug: Log user object when it changes
   useEffect(() => {
-    console.log('Current user in Navbar:', user);
-    if (user) {
-      console.log('User role:', user.role);
-      console.log('Is admin/owner:', user.role === 'admin' || user.role === 'owner');
-    }
-  }, [user]);
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    toast({
+      title: 'Logged Out',
+      description: 'You have been successfully logged out.',
+    });
+    navigate('/');
+  };
+
+  const isAdminOrOwner = user && (user.role === 'admin' || user.role === 'owner');
 
   // Base navigation items that are always visible
   const baseNavItems = [
@@ -42,33 +56,19 @@ const Navbar = () => {
   ];
 
   // Admin navigation items - only visible to admins/owners
-  const adminNavItems = (user?.role === 'admin' || user?.role === 'owner')
+  const adminNavItems = isAdminOrOwner
     ? [{ to: '/admin', label: 'Admin Space', icon: <UserCog size={18} /> }]
     : [];
 
   // Combine all navigation items
   const navItems = [...baseNavItems, ...adminNavItems];
 
-  const handleLogout = () => {
-    logout();
-  };
-
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 0);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-
     // Close search when navigating to /blogs
     if (location.pathname === '/blogs') {
       setIsSearchOpen(false);
       setSearchQuery('');
     }
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
   }, [location.pathname, setIsSearchOpen, setSearchQuery]);
 
   const navbarBgClass = theme === 'dark' ? 'bg-neutral-900/90 backdrop-blur-md' : 'bg-gray-200/90 backdrop-blur-md';

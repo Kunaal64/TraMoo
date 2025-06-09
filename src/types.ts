@@ -47,4 +47,5 @@ export interface Blog {
   createdAt: string;
   updatedAt: string;
   readTime?: number;
+  isLiked?: boolean;
 } 

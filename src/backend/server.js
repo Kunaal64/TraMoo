@@ -1087,21 +1087,11 @@ app.post('/api/blogs', protect, [
   }
 });
 
-app.put('/api/blogs/:id', protect, [
-  body('title').notEmpty().withMessage('Title is required'),
-  body('content').notEmpty().withMessage('Content is required'),
-  body('excerpt').notEmpty().withMessage('Excerpt is required'),
-  body('country').notEmpty().withMessage('Country is required'),
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { title, subtitle, content, excerpt, tags, country, published, images } = req.body;
+app.put('/api/blogs/:id', protect, async (req, res) => {
+  const { title, subtitle, content, images } = req.body;
 
   try {
-    let blog = await Blog.findById(req.params.id);
+    const blog = await Blog.findById(req.params.id);
 
     if (!blog) {
       return res.status(404).json({ message: 'Blog not found' });
@@ -1113,20 +1103,13 @@ app.put('/api/blogs/:id', protect, [
       return res.status(401).json({ message: 'User not authorized' });
     }
 
-    // Parse tags safely
-    const parsedTags = tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [];
-
-    const updatedBlog = await Blog.findByIdAndUpdate(req.params.id, {
-      title,
-      subtitle,
-      content,
-      excerpt: excerpt || content.substring(0, 150) + '...',
-      tags: parsedTags,
-      images: images || [],
-      country,
-      published: published === 'true',
-      updatedAt: Date.now()
-    }, { new: true });
+    blog.title = title;
+    blog.subtitle = subtitle;
+    blog.content = content;
+    blog.images = images;
+    blog.updatedAt = Date.now();
+    
+    const updatedBlog = await blog.save();
 
     res.json(updatedBlog);
     const updatedUser = await User.findById(req.user);
@@ -1180,22 +1163,29 @@ app.post('/api/blogs/:id/like', protect, async (req, res) => {
     }
 
     const userId = req.user;
-    const isLiked = blog.likes.includes(userId);
+    
+    // Filter out null/undefined values from likes array to prevent crashes
+    const validLikes = blog.likes.filter(id => id);
+
+    const likedIndex = validLikes.findIndex(id => id.toString() === userId.toString());
+    const isLiked = likedIndex > -1;
 
     if (isLiked) {
-      blog.likes = blog.likes.filter(id => id.toString() !== userId.toString());
+      validLikes.splice(likedIndex, 1);
     } else {
-      blog.likes.push(userId);
+      validLikes.push(userId);
     }
 
+    blog.likes = validLikes;
     await blog.save();
     res.json({ likes: blog.likes, isLiked: !isLiked });
+    
     const user = await User.findById(req.user);
     const action = isLiked ? 'unliked' : 'liked';
     console.log(`Blog ${action}: "${blog.title}" by ${user ? user.name : 'Unknown User'}`);
   } catch (error) {
-    console.error(error); // Keep this error log
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error in /like endpoint:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

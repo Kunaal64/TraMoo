@@ -7,15 +7,16 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 // Get the Google Client ID from environment variables
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-// Log the client ID for debugging (remove in production)
-console.log('Google OAuth Client ID:', googleClientId ? 'Found' : 'Missing');
+if (!googleClientId) {
+  // In a real application, you might want to handle this more gracefully
+}
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <GoogleOAuthProvider 
+    <GoogleOAuthProvider
       clientId={googleClientId}
-      onScriptLoadError={() => console.error('Failed to load Google OAuth script')}
-      onScriptLoadSuccess={() => console.log('Google OAuth script loaded successfully')}
+      onScriptLoadSuccess={() => {}}
+      onScriptLoadError={() => console.error('Google OAuth script failed to load')}
     >
       <App />
     </GoogleOAuthProvider>

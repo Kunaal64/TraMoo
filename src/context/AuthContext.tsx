@@ -41,7 +41,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await apiService.request<{ user: User }>('/auth/me');
       if (response && response.user) {
         setUser(response.user);
-        localStorage.setItem('user', JSON.stringify(response.user));
       } else {
         throw new Error('Invalid auth status response');
       }
@@ -58,7 +57,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = (data: { user: User; token: string; refreshToken?: string }) => {
-    console.log('Login data received:', data);
     localStorage.setItem('token', data.token);
     if (data.refreshToken) {
       localStorage.setItem('refreshToken', data.refreshToken);
@@ -68,8 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...data.user,
       role: data.user.role || 'user', // Ensure role is set, default to 'user'
     };
-    console.log('Setting user with data:', userWithDefaults);
-    localStorage.setItem('user', JSON.stringify(userWithDefaults));
     setUser(userWithDefaults);
   };
 
@@ -109,7 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('AuthContext: logout - Error sending logout request to backend:', error);
     } finally {
       localStorage.removeItem('token');
-      localStorage.removeItem('user');
       localStorage.removeItem('refreshToken');
       setUser(null);
       navigate('/');
@@ -128,7 +123,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
       toast({
         title: 'Profile Updated',
         description: 'Your profile information has been successfully updated.',

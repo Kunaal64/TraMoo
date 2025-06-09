@@ -80,7 +80,7 @@ const Blogs = () => {
       const response = await apiService.likeBlog(blogId);
       setAllBlogs(prevBlogs => 
         prevBlogs.map(blog => 
-          blog._id === blogId ? { ...blog, likes: response.likes } : blog
+          blog._id === blogId ? { ...blog, likes: response.likes, isLiked: response.isLiked } : blog
         )
       );
     } catch (err) {
@@ -193,7 +193,7 @@ const Blogs = () => {
               <BlogCard 
                 {...blog} 
                 index={index} 
-                isLiked={user ? (Array.isArray(blog.likes) && blog.likes.includes(user.id)) : false}
+                isLiked={user ? (Array.isArray(blog.likes) && blog.likes.includes(user._id)) : false}
                 onLikeToggle={handleLikeToggle}
                 onCardClick={() => navigate(`/blogs/${blog._id}`)}
                 isSearchResult={!!searchQuery}
