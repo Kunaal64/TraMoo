@@ -58,12 +58,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = (data: { user: User; token: string; refreshToken?: string }) => {
+    console.log('Login data received:', data);
     localStorage.setItem('token', data.token);
     if (data.refreshToken) {
       localStorage.setItem('refreshToken', data.refreshToken);
     }
-    localStorage.setItem('user', JSON.stringify(data.user));
-    setUser(data.user);
+    // Ensure user object has all required fields
+    const userWithDefaults = {
+      ...data.user,
+      role: data.user.role || 'user', // Ensure role is set, default to 'user'
+    };
+    console.log('Setting user with data:', userWithDefaults);
+    localStorage.setItem('user', JSON.stringify(userWithDefaults));
+    setUser(userWithDefaults);
   };
 
   const register = async (name: string, email: string, password: string) => {

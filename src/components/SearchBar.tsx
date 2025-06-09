@@ -5,6 +5,7 @@ import { useSearch } from '../context/SearchContext';
 
 interface SearchBarProps {
   placeholder?: string;
+  onClose?: () => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({

@@ -69,17 +69,58 @@ const Home = () => {
       });
       return;
     }
+    
     try {
+      // Optimistic update
+      setFeaturedBlogs(prevBlogs => 
+        prevBlogs.map(blog => {
+          if (blog._id === blogId) {
+            const isLiked = blog.likes.includes(user._id);
+            return {
+              ...blog,
+              likes: isLiked 
+                ? blog.likes.filter(id => id !== user._id)
+                : [...blog.likes, user._id],
+              isLiked: !isLiked
+            };
+          }
+          return blog;
+        })
+      );
+      
+      // Make the API call
       const response = await apiService.likeBlog(blogId);
+      
+      // Update with server response
       setFeaturedBlogs(prevBlogs => 
         prevBlogs.map(blog => 
-          blog._id === blogId ? { ...blog, likes: response.likes } : blog
+          blog._id === blogId ? { 
+            ...blog, 
+            likes: response.likes,
+            isLiked: response.isLiked 
+          } : blog
         )
       );
     } catch (err) {
+      console.error('Like error:', err);
+      // Revert optimistic update on error
+      setFeaturedBlogs(prevBlogs => 
+        prevBlogs.map(blog => {
+          if (blog._id === blogId) {
+            return {
+              ...blog,
+              likes: blog.likes.includes(user._id) 
+                ? blog.likes.filter(id => id !== user._id)
+                : [...blog.likes, user._id]
+            };
+          }
+          return blog;
+        })
+      );
+      
       toast({
         title: 'Error',
-        description: 'Failed to update like status.',
+        description: 'Failed to update like status. Please try again.',
         variant: 'destructive',
       });
     }
@@ -130,11 +171,12 @@ const Home = () => {
           >
             <Button
               asChild
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              variant="outline"
+              className="border-border text-foreground hover:bg-accent hover:text-accent-foreground"
             >
               <Link to="/writers-corner">
-                Share Memories
-                <ArrowRight className="ml-2 h-4 w-4 text-primary-foreground" />
+                Share Stories
+                <ArrowRight className="ml-4 h-4 w-4 text-foreground" />
               </Link>
             </Button>
 

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Shield, User as UserIcon, Trash2, Search } from 'lucide-react';
+import { Shield, User as UserIcon, Trash2, Search, UserX, UserCheck, UserMinus } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,6 +80,15 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const deleteUser = async (id: string) => {
+    try {
+      await apiService.request(`/users/${id}`, { method: 'DELETE' });
+      setUsers(users.filter(u => u._id !== id));
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
+  };
+
   const getRoleBadge = (role: 'user' | 'admin' | 'owner') => {
     switch (role) {
       case 'owner':
@@ -127,52 +136,114 @@ const AdminPanel: React.FC = () => {
                     <TableCell className="hidden sm:table-cell">{u.email}</TableCell>
                     <TableCell>{getRoleBadge(u.role)}</TableCell>
                     <TableCell className="text-right">
-                      {(user?.role === 'admin' || user?.role === 'owner') && u.role === 'user' && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="outline" className="flex w-36 justify-center">
-                              <Shield className="mr-2 h-4 w-4" /> Make Admin
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will grant admin privileges to {u.name}. They will be able to edit and delete any content.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => makeAdmin(u._id)}>
-                                Proceed
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                      {user?.role === 'owner' && u.role === 'admin' && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="destructive" className="flex w-36 justify-center">
-                              <Trash2 className="mr-2 h-4 w-4" /> Remove Admin
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will revoke admin privileges from {u.name}. They will be downgraded to a regular user.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => removeAdmin(u._id)}>
-                                Proceed
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
+                      <div className="flex items-center justify-end space-x-2">
+                        {/* Make Admin Button */}
+                        {(user?.role === 'admin' || user?.role === 'owner') && u.role === 'user' && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="flex items-center justify-center gap-2 whitespace-nowrap"
+                              >
+                                <UserCheck className="h-4 w-4" />
+                                <span className="hidden sm:inline">Make Admin</span>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Make {u.name} an Admin?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will grant admin privileges to {u.name}. They will be able to:
+                                  <ul className="list-disc pl-5 mt-2 space-y-1">
+                                    <li>Edit and delete any content</li>
+                                    <li>Manage user roles (for owners)</li>
+                                    <li>Access all admin features</li>
+                                  </ul>
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => makeAdmin(u._id)}
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                  Make Admin
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+
+                        {/* Remove Admin Button (Owner only) */}
+                        {user?.role === 'owner' && u.role === 'admin' && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="flex items-center justify-center gap-2 whitespace-nowrap"
+                              >
+                                <UserMinus className="h-4 w-4" />
+                                <span className="hidden sm:inline">Remove Admin</span>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove Admin Privileges?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will revoke admin privileges from {u.name}. They will be downgraded to a regular user.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => removeAdmin(u._id)}
+                                  className="bg-amber-600 hover:bg-amber-700"
+                                >
+                                  Remove Admin
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+
+                        {/* Delete User Button (Owner only, can't delete self) */}
+                        {user?.role === 'owner' && u._id !== user?._id && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="destructive" 
+                                className="flex items-center justify-center gap-2 whitespace-nowrap"
+                              >
+                                <UserX className="h-4 w-4" />
+                                <span className="hidden sm:inline">Delete User</span>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete {u.name}'s Account?</AlertDialogTitle>
+                                <AlertDialogDescription className="space-y-2">
+                                  <p>This action cannot be undone. This will permanently delete {u.name}'s account and all associated data.</p>
+                                  <p className="font-medium text-destructive">
+                                    Warning: This action is irreversible and will remove all user data.
+                                  </p>
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => deleteUser(u._id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Delete Account
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

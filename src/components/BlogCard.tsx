@@ -47,6 +47,14 @@ const BlogCard: React.FC<BlogCardProps> = ({
   isSearchResult = false,
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isLikedState, setIsLikedState] = useState(isLiked);
+  const [likesCount, setLikesCount] = useState(likes.length);
+
+  // Update local state when props change
+  useEffect(() => {
+    setIsLikedState(isLiked);
+    setLikesCount(likes.length);
+  }, [isLiked, likes]);
 
   useEffect(() => {
     if (images && images.length > 1) {
@@ -102,13 +110,27 @@ const BlogCard: React.FC<BlogCardProps> = ({
             onClick={(e) => {
               e.preventDefault(); // Prevent navigating to blog detail
               e.stopPropagation(); // Prevent event from bubbling up to Link
-              if (onLikeToggle) onLikeToggle(_id);
+              if (onLikeToggle) {
+                // Optimistic update
+                setIsLikedState(!isLikedState);
+                setLikesCount(prev => isLikedState ? prev - 1 : prev + 1);
+                onLikeToggle(_id);
+              }
             }}
-            className={`absolute top-4 left-4 w-8 h-8 glass rounded-full flex items-center justify-center ${isLiked ? 'text-red-500' : 'text-white opacity-0 group-hover:opacity-100'} transition-all duration-300`}
+            className={`absolute top-4 left-4 w-8 h-8 glass rounded-full flex items-center justify-center ${
+              isLikedState 
+                ? 'text-red-500' 
+                : 'text-white opacity-0 group-hover:opacity-100'
+            } transition-all duration-300`}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
+            aria-label={isLikedState ? 'Unlike this post' : 'Like this post'}
           >
-            <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} />
+            <Heart 
+              size={16} 
+              fill={isLikedState ? 'currentColor' : 'none'} 
+              className={`transition-transform duration-200 ${isLikedState ? 'scale-110' : 'scale-100'}`}
+            />
           </motion.button>
         </div>
         
@@ -154,8 +176,8 @@ const BlogCard: React.FC<BlogCardProps> = ({
             </div>
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1">
-                <Heart size={14} />
-                <span>{likes.length}</span>
+                <Heart size={14} fill={isLikedState ? 'currentColor' : 'none'} className={isLikedState ? 'text-red-500' : ''} />
+                <span>{likesCount}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <MessageSquare size={14} />

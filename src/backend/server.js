@@ -449,6 +449,110 @@ const upload = multer({ storage: storage });
 
 // Routes
 
+// User management routes
+app.get('/api/users', protect, adminProtect, async (req, res) => {
+  try {
+    // Get all users but exclude sensitive data
+    const users = await User.find({}, '-password -refreshToken -__v');
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Error fetching users', error: error.message });
+  }
+});
+
+// Make user admin (owner only)
+app.put('/api/users/:id/make-admin', protect, ownerProtect, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (user.role === 'owner') {
+      return res.status(400).json({ message: 'Cannot modify owner role' });
+    }
+    
+    user.role = 'admin';
+    await user.save();
+    
+    // Return updated user without sensitive data
+    const { password, refreshToken, ...userData } = user.toObject();
+    res.status(200).json(userData);
+  } catch (error) {
+    console.error('Error making user admin:', error);
+    res.status(500).json({ message: 'Error updating user role', error: error.message });
+  }
+});
+
+// Remove admin privileges (owner only)
+app.put('/api/users/:id/remove-admin', protect, ownerProtect, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (user.role === 'owner') {
+      return res.status(400).json({ message: 'Cannot modify owner role' });
+    }
+    
+    user.role = 'user';
+    await user.save();
+    
+    // Return updated user without sensitive data
+    const { password, refreshToken, ...userData } = user.toObject();
+    res.status(200).json(userData);
+  } catch (error) {
+    console.error('Error removing admin role:', error);
+    res.status(500).json({ message: 'Error updating user role', error: error.message });
+  }
+});
+
+// Delete user (owner only)
+app.delete('/api/users/:id', protect, ownerProtect, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const currentUser = req.user;
+    
+    // Prevent deleting yourself
+    if (userId === currentUser._id.toString()) {
+      return res.status(400).json({ message: 'Cannot delete your own account' });
+    }
+    
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (user.role === 'owner') {
+      return res.status(400).json({ message: 'Cannot delete owner account' });
+    }
+    
+    // Delete user's blogs and comments
+    await Promise.all([
+      Blog.deleteMany({ author: userId }),
+      Comment.deleteMany({ user: userId })
+    ]);
+    
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+    
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Error deleting user', error: error.message });
+  }
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ message: 'Server is up and running' });
+});
+
 // Auth Routes
 app.post('/api/auth/register', [
   body('name').notEmpty().withMessage('Name is required'),
@@ -598,7 +702,7 @@ app.post('/api/auth/google', async (req, res) => {
       
       if (!user) {
         console.log('User not found, creating new user.');
-        // Create new user
+        // Create new user with default role 'user'
         user = new User({
           name: payload.name || payload.email.split('@')[0],
           email: payload.email,
@@ -606,6 +710,7 @@ app.post('/api/auth/google', async (req, res) => {
           isGoogleUser: true,
           profilePicture: payload.picture,
           emailVerified: payload.email_verified || false,
+          role: 'user', // Set default role
         });
         
         await user.save({ session });
@@ -627,10 +732,15 @@ app.post('/api/auth/google', async (req, res) => {
       // Generate JWT token
       console.log('Generating JWT for user ID:', user._id);
       const token = generateToken(user._id);
-      const refreshToken = jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+      const refreshToken = crypto.randomBytes(40).toString('hex');
+      
+      // Save refresh token to user
       user.refreshToken = refreshToken;
       await user.save({ session });
-
+      
+      await session.commitTransaction();
+      session.endSession();
+      
       // Prepare user data for response
       const userData = {
         _id: user._id,
@@ -638,14 +748,11 @@ app.post('/api/auth/google', async (req, res) => {
         email: user.email,
         isGoogleUser: user.isGoogleUser,
         profilePicture: user.profilePicture,
-        emailVerified: user.emailVerified
+        emailVerified: user.emailVerified,
+        role: user.role || 'user' // Ensure role is always included
       };
 
-      // Commit the transaction
-      await session.commitTransaction();
-      session.endSession();
-      
-      console.log('Sending success response for user:', userData.email);
+      console.log('Sending success response for user:', user.email);
       console.log(isNewUser ? 'New user registered' : 'Existing user logged in');
 
       // Return user data and token in the format expected by the frontend

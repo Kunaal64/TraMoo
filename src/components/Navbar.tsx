@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Menu, X, User, PenTool, BookOpen, Compass, Heart, LogOut } from 'lucide-react';
+import { Search, Menu, X, User, PenTool, BookOpen, Compass, Heart, LogOut, UserCog } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './ThemeToggle';
 import SearchBar from './SearchBar';
@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { SheetClose } from '@/components/ui/sheet';
 import { NavLink } from 'react-router-dom';
-import { ModeToggle } from './mode-toggle';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -25,12 +24,30 @@ const Navbar = () => {
   const { logout, user } = useAuth();
   const { isSearchOpen, setIsSearchOpen, setSearchQuery } = useSearch();
 
-  const navItems = [
+  // Debug: Log user object when it changes
+  useEffect(() => {
+    console.log('Current user in Navbar:', user);
+    if (user) {
+      console.log('User role:', user.role);
+      console.log('Is admin/owner:', user.role === 'admin' || user.role === 'owner');
+    }
+  }, [user]);
+
+  // Base navigation items that are always visible
+  const baseNavItems = [
     { to: '/', label: 'Home', icon: <Compass size={18} /> },
     { to: '/blogs', label: 'Stories', icon: <BookOpen size={18} /> },
     { to: '/liked-blogs', label: 'Favourites', icon: <Heart size={18} /> },
     { to: '/writers-corner', label: "Writer's Corner", icon: <PenTool size={18} /> },
   ];
+
+  // Admin navigation items - only visible to admins/owners
+  const adminNavItems = (user?.role === 'admin' || user?.role === 'owner')
+    ? [{ to: '/admin', label: 'Admin Space', icon: <UserCog size={18} /> }]
+    : [];
+
+  // Combine all navigation items
+  const navItems = [...baseNavItems, ...adminNavItems];
 
   const handleLogout = () => {
     logout();
@@ -76,50 +93,57 @@ const Navbar = () => {
         style={{
           willChange: 'transform, opacity',
           boxShadow: theme === 'dark' 
-            ? '0 4px 10px -2px rgba(0, 0, 0, 0.2), 0 5px 25px rgba(0,0,0,0.8)' /* Darker, more pronounced blur */
-            : '0 4px 10px -2px rgba(0, 0, 0, 0.1), 0 5px 25px rgba(0,0,0,0.2)' /* Lighter, more pronounced blur */
-        }} /* Increased blur for bottom border */
+            ? '0 4px 10px -2px rgba(0, 0, 0, 0.2), 0 5px 25px rgba(0,0,0,0.8)'
+            : '0 4px 10px -2px rgba(0, 0, 0, 0.1), 0 5px 25px rgba(0,0,0,0.2)'
+        }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center space-x-3">
-              <motion.div
-                className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Compass className="text-primary-foreground" size={18} />
-              </motion.div>
-              <span className="text-xl font-bold gradient-text-hero">
-                TraMoo
-              </span>
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              {navItems.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-xl transition-all font-medium ${
-                    location.pathname === item.to
-                      ? 'text-foreground bg-secondary'
-                      : 'text-muted-foreground hover:text-orange-500'
-                  }`}
+        <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative flex items-center justify-between h-16">
+            {/* Left section - Logo */}
+            <div className="flex-shrink-0 flex items-center">
+              <Link to="/" className="flex items-center space-x-3">
+                <motion.div
+                  className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </Link>
-              ))}
+                  <Compass className="text-primary-foreground" size={18} />
+                </motion.div>
+                <span className="text-xl font-bold gradient-text-hero">
+                  TraMoo
+                </span>
+              </Link>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center space-x-4">
+            {/* Center section - Navigation */}
+            <div className="hidden md:flex items-center justify-center flex-1 px-4">
+              <nav className="w-full max-w-2xl">
+                <ul className="flex items-center justify-between w-full">
+                  {navItems.map((item) => (
+                    <li key={item.to}>
+                      <Link
+                        to={item.to}
+                        className={`flex items-center space-x-2 px-4 h-10 rounded-xl transition-all font-medium ${
+                          location.pathname === item.to
+                            ? 'text-foreground bg-secondary'
+                            : 'text-muted-foreground hover:text-orange-500 hover:bg-accent/50 dark:hover:text-orange-400'
+                        }`}
+                      >
+                        {item.icon}
+                        <span className="whitespace-nowrap">{item.label}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </div>
+
+            {/* Right-aligned actions */}
+            <div className="flex items-center space-x-3 ml-auto">
               {showSearchIcon && (
                 <motion.button
                   onClick={handleSearchToggle}
-                  className="p-2 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -127,25 +151,31 @@ const Navbar = () => {
                 </motion.button>
               )}
               
-              <ThemeToggle />
+              <div className="h-10 flex items-center">
+                <ThemeToggle />
+              </div>
               
               {user ? (
                 <>
-                  <NavLink
-                    to="/profile"
-                    className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-xl transition-all btn-hover font-medium border border-primary text-primary hover:bg-primary/10 dark:border-primary-foreground dark:text-primary-foreground dark:hover:bg-primary/10"
-                  >
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs dark:bg-primary-foreground dark:text-primary">{getInitials(user?.name || '')}</AvatarFallback>
-                    </Avatar>
-                    <span>{user?.name || 'Profile'}</span>
-                  </NavLink>
-                  <button
-                    onClick={handleLogout}
-                    className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-xl transition-all btn-hover font-medium border border-destructive text-destructive hover:bg-destructive/10 dark:border-destructive dark:text-destructive-foreground dark:hover:bg-destructive/30"
-                  >
-                    <span>Logout</span>
-                  </button>
+                  <div className="hidden md:flex items-center space-x-4">
+                    <NavLink
+                      to="/profile"
+                      className="flex-shrink-0 flex items-center h-10 px-4 space-x-2 rounded-xl transition-all font-medium text-muted-foreground hover:text-foreground hover:bg-accent"
+                    >
+                      <Avatar className="h-6 w-6 flex-shrink-0">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs dark:bg-primary-foreground dark:text-primary">
+                          {getInitials(user?.name || '')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="whitespace-nowrap max-w-[120px] truncate">{user?.name || 'Profile'}</span>
+                    </NavLink>
+                    <button
+                      onClick={handleLogout}
+                      className="flex-shrink-0 flex items-center h-10 px-4 rounded-xl transition-all font-medium text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/30"
+                    >
+                      <span>Logout</span>
+                    </button>
+                  </div>
                 </>
               ) : (
                 <Link
@@ -160,7 +190,7 @@ const Navbar = () => {
               {/* Mobile menu button */}
               <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="md:hidden p-2 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="md:hidden p-2 -mr-2 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 {isOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
@@ -188,20 +218,20 @@ const Navbar = () => {
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden glass bg-background border-t border-border"
           >
-            <div className="px-4 py-6 space-y-4">
+            <div className="px-4 py-6 space-y-2">
               {navItems.map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center space-x-2 py-2 rounded-md transition-colors ${
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${
                     location.pathname === item.to
-                      ? 'text-primary'
-                      : 'text-muted-foreground hover:text-orange-500'
+                      ? 'bg-secondary text-foreground'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground dark:hover:text-orange-400'
                   }`}
                 >
-                  {item.icon}
-                  <span>{item.label}</span>
+                  {React.cloneElement(item.icon, { size: 20 })}
+                  <span className="text-base">{item.label}</span>
                 </Link>
               ))}
               {user ? (
