@@ -392,7 +392,7 @@ const WritersCorner = () => {
                 <Textarea id="content" name="content" value={currentBlog.content} onChange={handleInputChange} required className="glass-textarea h-48" />
               </div>
               <div className="mb-4">
-                <Label htmlFor="tags" className="block text-foreground text-sm font-bold mb-2">Tags (comma-separated)</Label>
+                <Label htmlFor="tags" className="block text-foreground text-sm font-bold mb-2">Tags</Label>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   {currentBlog.tags.map((tag, index) => (
                     <span key={index} className="bg-secondary text-secondary-foreground text-xs px-3 py-1 rounded-full flex items-center gap-1">
@@ -409,7 +409,7 @@ const WritersCorner = () => {
                 </div>
               </div>
               <div className="mb-6">
-                <Label htmlFor="imageLink" className="block text-foreground text-sm font-bold mb-2">Embed Image Link</Label>
+                <Label htmlFor="imageLink" className="block text-foreground text-sm font-bold mb-2">Image Link</Label>
                 <div className="flex space-x-2">
                   <Input type="url" id="imageLink" name="imageLink" value={newImageLink} onChange={(e) => setNewImageLink(e.target.value)} placeholder="Paste image URL" className="glass-input flex-grow" />
                   <Button type="button" onClick={handleImageLinkAdd} className="bg-secondary hover:bg-secondary/80 text-secondary-foreground">
